@@ -24,6 +24,7 @@ class dataset(torch.utils.data.Dataset):
              transforms.Resize(self.img_size),
              transforms.RandomVerticalFlip(p=0.5),
              transforms.RandomHorizontalFlip(p=0.5),
+             transforms.ColorJitter(brightness=0.4, contrast=0.5, saturation=0.4, hue=0.15),
              transforms.ToTensor(),
              transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ])
@@ -41,7 +42,7 @@ class dataset(torch.utils.data.Dataset):
 
     def load_img(self, data_path, seed):
         img = Image.open(data_path)
-        if self.mode=='test':
+        if self.mode =='test':
             random.seed(seed)
             return self.augment_train(img)
         else:
@@ -52,7 +53,7 @@ class dataset(torch.utils.data.Dataset):
         seed = np.random.randint(2147483647)
 
         rand_scene = np.random.randint(0, len(self.scenes))
-        vertical = np.random.choice(2, 1)[0]
+        vertical  = np.random.choice(2, 1)[0]
 
         if vertical:
             input = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 45).zfill(3)
