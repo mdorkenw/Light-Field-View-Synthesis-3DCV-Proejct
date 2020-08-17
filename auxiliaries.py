@@ -1,11 +1,10 @@
 import numpy as np, time, random, csv, glob
-import torch, ast, pandas as pd, copy, itertools as it, os, torch.nn as nn
-from torchvision import transforms
-from PIL import Image
+import torch, ast, pandas as pd, copy, itertools as it, os
 import argparse
 import itertools as it, copy
+import torchvision
 import matplotlib.pyplot as plt
-from sklearn import metrics
+plt.switch_backend('agg')
 
 
 ### Function to extract setup info from text file ###
@@ -134,23 +133,12 @@ class loss_tracking():
         self.dic = {x: np.array([]) for x in self.loss_dic}
 
     def append(self, losses):
-        # assert (len(self.keys)-2 == len(losses))
         for idx in range(len(losses)):
             self.dic[self.keys[idx]] = np.append(self.dic[self.keys[idx]], losses[idx])
 
-    def append_auc(self, auc):
-        self.dic['AUC'] = np.append(self.dic['AUC'], auc)
-
-    def append_binary_acc(self, acc):
-        self.dic['binary_acc'] = np.append(self.dic['binary_acc'], acc)
-
-    def append_accs(self, acss):
-        for idx in range(len(acss)):
-            self.dic[self.keys[idx + 2]] = np.append(self.dic[self.keys[idx+2]], acss[idx])
-
     def get_iteration_mean(self, num=20):
         mean = []
-        for idx in range(2):
+        for idx in range(len(self.keys)):
             if len(self.dic[self.keys[idx]]) <= num:
                 mean.append(np.mean(self.dic[self.keys[idx]]))
             else:
@@ -174,47 +162,20 @@ class loss_tracking():
         return self.hist
 
 
-def auc_weighted(y_true, y_valid):
-    tpr_thresholds = [0.0, 0.4, 1.0]
-    weights = [2, 1]
-
-    fpr, tpr, thresholds = metrics.roc_curve(y_true, y_valid, pos_label=1)
-
-    # size of subsets
-    areas = np.array(tpr_thresholds[1:]) - np.array(tpr_thresholds[:-1])
-
-    # The total area is normalized by the sum of weights such that the final weighted AUC is between 0 and 1.
-    normalization = np.dot(areas, weights)
-
-    competition_metric = 0
-    for idx, weight in enumerate(weights):
-        y_min = tpr_thresholds[idx]
-        y_max = tpr_thresholds[idx + 1]
-        mask = (y_min < tpr) & (tpr < y_max)
-
-        x_padding = np.linspace(fpr[mask][-1], 1, 100)
-
-        x = np.concatenate([fpr[mask], x_padding])
-        y = np.concatenate([tpr[mask], [y_max] * len(x_padding)])
-        y = y - y_min  # normalize such that curve starts at y=0
-        score = metrics.auc(x, y)
-        submetric = score * weight
-        competition_metric += submetric
-
-    return competition_metric / normalization
+def denorm(x):
+    out = (x + 1) / 2
+    return out.clamp_(0, 1)
 
 
-def auc(y_true, y_valid):
-    return metrics.auc(y_true, y_valid)
+def save_images(recon, target, opt, epoch, mode):
+    recon = recon.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
+    target = target.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
+
+    for i in range(5):
+        torchvision.utils.save_image(denorm(recon[i]).float().cpu().data, opt.Paths['save_path'] + \
+                                     '/images/{:03d}_seq_generated_{:03d}'.format(epoch + 1, i) + mode + '.png',
+                                     normalize=True)
+        torchvision.utils.save_image(denorm(target[i]).float().cpu().data, opt.Paths['save_path'] + \
+                                     '/images/{:03d}_seq_original_{:03d}'.format(epoch + 1, i) + mode + '.png')
 
 
-def acc_per_class(pred, target, dic):
-    n_classes = dic.Network['n_classes']
-    accs = np.zeros(n_classes)
-    for idx in range(n_classes):
-        index = np.where(target == idx)[0]
-        if len(index) > 0:
-            accs[idx] = (pred[index] == idx).mean()
-        else:
-            accs[idx] = 1
-    return accs

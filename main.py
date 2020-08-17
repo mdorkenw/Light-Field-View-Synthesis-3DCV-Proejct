@@ -1,7 +1,5 @@
 import numpy as np, os, sys, pandas as pd, ast, time, gc
 import torch, torch.nn as nn, pickle as pkl, random
-from PIL import Image
-from torchvision import transforms
 from tqdm import tqdm, trange
 import network as net
 import auxiliaries as aux
@@ -25,65 +23,29 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
 
     _ = network.train()
     loss_track.reset()
-    logits_collect = []; labels_collect = []
     data_iter = tqdm(data_loader, position=2)
     inp_string = 'Epoch {} || Loss: --- | Acc: ---'.format(epoch)
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
         input = file_dict["input"].type(torch.FloatTensor).cuda()
-        label = file_dict["label"].type(torch.FloatTensor).cuda()
-        mask = file_dict["mask"].type(torch.FloatTensor).cuda()
 
-        logits = network(input, mask)
-        loss = loss_func(logits, label)
+        img_recon, mu, covar = network(input)
+        loss, loss_recon, loss_kl = loss_func(img_recon, input, mu, covar)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        ## Compute Accuracy
-        label = np.argmax(label.cpu().data.numpy(), axis=1)
-        acc = (np.sum(np.argmax(logits.cpu().data.numpy(), axis=1) == label))/logits.size(0)
-
-        ## Collect logits to compute weighted AUC later
-        logits_collect.append(logits.detach().cpu())
-        labels_collect.append(label)
-
-        loss_dic = [loss.item(), acc]
+        loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
         loss_track.append(loss_dic)
 
         if image_idx % 20 == 0:
-            loss_mean, acc_mean, *_ = loss_track.get_iteration_mean()
-            inp_string = 'Epoch {} || Loss: {} | Acc: {}'.format(epoch, np.round(loss_mean, 2), np.round(acc_mean, 3))
+            _, loss_recon, loss_kl = loss_track.get_iteration_mean()
+            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 2), np.round(loss_kl, 3))
             data_iter.set_description(inp_string)
 
-    logits = torch.cat(logits_collect, dim=0)
-    label = np.concatenate(labels_collect, axis=0)
-
-    ## compute weighted AUC
-    prediction = np.argmax(logits.cpu().data.numpy(), axis=1)
-    accs = aux.acc_per_class(prediction, label, dic)
-    loss_track.append_accs(accs)
-
-    if 5 > logits.size(1) > 1:
-        pred = 1 - nn.functional.softmax(logits, dim=1).numpy()[:, 0]
-        label = label.clip(min=0, max=1).astype(int)
-    elif logits.size(1) > 5:
-        pred = 1 - np.sum(nn.functional.softmax(logits, dim=1).numpy()[:, :3], axis=1)
-        label[label<3]  = 0
-        label[label>=3] = 1
-    else:
-        pred = 1 - logits.numpy().reshape(-1)
-    
-    auc = aux.auc_weighted(label, pred)
-    loss_track.append_auc(auc)
-
-    ## Compute binary classification
-    pred[pred > 0.5] = 1
-    pred[pred <= 0.5] = 0
-    acc = (np.round(pred == label)).mean()
-    loss_track.append_binary_acc(acc)
-
+    ## Save images
+    aux.save_images(img_recon, input, dic, epoch, 'train')
     ### Empty GPU cache
     torch.cuda.empty_cache()
     loss_track.get_mean()
@@ -94,118 +56,46 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
 
     _ = network.eval()
     loss_track.reset()
-
-    logits_collect = []; labels_collect = []
     data_iter = tqdm(data_loader, position=2)
     inp_string = 'Epoch {} || Loss: --- | Acc: ---'.format(epoch)
     data_iter.set_description(inp_string)
+    for image_idx, file_dict in enumerate(data_iter):
 
-    with torch.no_grad():
-        for image_idx, file_dict in enumerate(data_iter):
+        input = file_dict["input"].type(torch.FloatTensor).cuda()
 
-            input = file_dict["input"].type(torch.FloatTensor).cuda()
-            label = file_dict["label"].type(torch.FloatTensor).cuda()
-            mask = file_dict["mask"].type(torch.FloatTensor).cuda()
+        img_recon, mu, covar = network(input)
+        loss, loss_recon, loss_kl = loss_func(img_recon, input, mu, covar)
 
-            logits = network(input, mask)
-            loss = loss_func(logits, label)
+        loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
+        loss_track.append(loss_dic)
 
-            ## Compute Accuracy
-            label = np.argmax(label.cpu().data.numpy(), axis=1)
-            acc = (np.sum(np.argmax(logits.cpu().data.numpy(), axis=1) == label))/logits.size(0)
+        if image_idx % 20 == 0:
+            _, loss_recon, loss_kl = loss_track.get_iteration_mean()
+            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 2), np.round(loss_kl, 3))
+            data_iter.set_description(inp_string)
 
-            ## Collect logits to compute weighted AUC later
-            logits_collect.append(logits.detach().cpu())
-            labels_collect.append(label)
-
-            loss_dic = [loss.item(), acc]
-            loss_track.append(loss_dic)
-
-            if image_idx % 20 == 0:
-                loss_mean, acc_mean, *_ = loss_track.get_iteration_mean()
-                inp_string = 'Epoch {} || Loss: {} | Acc: {}'.format(epoch, np.round(loss_mean, 2), np.round(acc_mean, 3))
-                data_iter.set_description(inp_string)
-
-
-    logits = torch.cat(logits_collect, dim=0)
-    label = np.concatenate(labels_collect, axis=0)
-
-    ## compute weighted AUC
-    prediction = np.argmax(logits.cpu().data.numpy(), axis=1)
-    accs = aux.acc_per_class(prediction, label, dic)
-    loss_track.append_accs(accs)
-
-    if 5 > logits.size(1) > 1:
-        pred = 1 - nn.functional.softmax(logits, dim=1).numpy()[:, 0]
-        label = label.clip(min=0, max=1).astype(int)
-    elif logits.size(1) > 5:
-        pred = 1 - np.sum(nn.functional.softmax(logits, dim=1).numpy()[:, :3], axis=1)
-        label[label<3]  = 0
-        label[label>=3] = 1
-    else:
-        pred = 1 - logits.numpy().reshape(-1)
-    
-    auc = aux.auc_weighted(label, pred)
-    loss_track.append_auc(auc)
-
-    ## Compute binary classification
-    pred[pred > 0.5] = 1
-    pred[pred <= 0.5] = 0
-    acc = (np.round(pred == label)).mean()
-    loss_track.append_binary_acc(acc)
+    ## Save images
+    aux.save_images(img_recon, input, dic, epoch, 'test')
 
     ### Empty GPU cache
     torch.cuda.empty_cache()
     loss_track.get_mean()
 
-
-def tester(network, epoch, data_loader, save_path):
-
-    _ = network.eval()
-    logits_collect = []
-    data_iter = tqdm(data_loader, position=2)
-    inp_string = 'Epoch {} '.format(epoch)
-    data_iter.set_description(inp_string)
-
-    with torch.no_grad():
-        for image_idx, file_dict in enumerate(data_iter):
-
-            input = file_dict["input"].type(torch.FloatTensor).cuda()
-            mask = file_dict["mask"].type(torch.FloatTensor).cuda()
-
-            logits   = network(input, mask)
-            logits_collect.append(logits.detach().cpu())
-
-    logits = torch.cat(logits_collect, dim=0)
-
-    if 5 > logits.size(1) > 1:
-        pred = 1 - nn.functional.softmax(logits, dim=1).numpy()[:, 0]
-    elif logits.size(1) > 5:
-        pred = 1 - np.sum(nn.functional.softmax(logits, dim=1).numpy()[:, :3], axis=1)
-    else:
-        pred = 1 - logits.numpy().reshape(-1)
-
-    aux.write_submission(pred, epoch, save_path)
-
-
 def main(opt):
     """============================================"""
-    ### Load Network
-    network = net.Net(opt.Network).cuda()
-    print("Number of parameters in model", sum(p.numel() for p in network.parameters()))
+    ### Create Network
+    network = net.VAE(opt.Network).cuda()
 
     ###### Define Optimizer ######
-    loss_func   = Loss.LabelSmoothing(opt.Training)
-    optimizer   = torch.optim.AdamW(network.parameters(), lr=opt.Training['lr'], weight_decay=opt.Training['weight_decay'])
+    loss_func   = Loss.Loss(opt.Training)
+    optimizer   = torch.optim.Adam(network.parameters(), lr=opt.Training['lr'], weight_decay=opt.Training['weight_decay'])
     scheduler   = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=1, min_lr=1e-8,
                                                              threshold=0.0001, threshold_mode='abs')
+
     ###### Create Dataloaders ######
     train_dataset     = dloader.dataset(opt, mode='train')
     train_data_loader = torch.utils.data.DataLoader(train_dataset, num_workers=opt.Training['workers'],
                                                     batch_size=opt.Training['bs'], shuffle=True)
-    val_dataset       = dloader.dataset(opt, mode='evaluation')
-    val_data_loader   = torch.utils.data.DataLoader(val_dataset, num_workers=opt.Training['workers'],
-                                                    batch_size=opt.Training['bs'], shuffle=False)
     test_dataset       = dloader.dataset(opt, mode='test')
     test_data_loader   = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],
                                                      batch_size=opt.Training['bs'], shuffle=False)
@@ -239,7 +129,7 @@ def main(opt):
     # Make summary plots, images, segmentation and videos folder
     save_summary = save_path + '/summary_plots'
     make_folder(save_path + '/summary_plots')
-    make_folder(save_path + '/submission')
+    make_folder(save_path + '/images')
 
     ### Copy Code !!
     copy_tree('./', save_path + '/code/')
@@ -251,8 +141,7 @@ def main(opt):
     pkl.dump(opt, open(opt.Paths['save_path'] + "/hypa.pkl", "wb"))
 
     ## Loss tracker is implented in such a way that the first 2 elements are added every iteration
-    Acc_classes = [f"Acc class {str(i)}" for i in range(opt.Network['n_classes'])]
-    logging_keys = ["Loss", "Acc Mean", *Acc_classes, "binary_acc", "AUC"]
+    logging_keys = ["Loss", "L_recon", 'L_kl']
 
     loss_track_train = aux.loss_tracking(logging_keys)
     loss_track_test = aux.loss_tracking(logging_keys)
@@ -273,14 +162,11 @@ def main(opt):
 
         ###### Validation #########
         epoch_iterator.set_description('Validating...')
-        validator(network, opt, epoch, val_data_loader, loss_track_test, loss_func)
+        validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
 
         ## Best Validation Score
         current_auc = loss_track_test.get_current_mean()[-1]
         if current_auc > best_val_auc:
-            ## Forward pass on test set + write submission csv file
-            epoch_iterator.set_description('Testing...')
-            tester(network, epoch, test_data_loader, opt.Paths['save_path'])
             ###### SAVE CHECKPOINTS ########
             save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}
             torch.save(save_dict, opt.Paths['save_path'] + '/checkpoint_best_val.pth.tar')
@@ -299,7 +185,7 @@ def main(opt):
 ### Start Training ###
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-cf", "--config", type=str, default='/export/home/mdorkenw/code/ALASKA2/network_base_setup.txt',
+    parser.add_argument("-cf", "--config", type=str, default='/export/home/mdorkenw/code/Lightfield/network_base_setup.txt',
                         help="Define config file")
     args = parser.parse_args()
     training_setups = aux.extract_setup_info(args.config)

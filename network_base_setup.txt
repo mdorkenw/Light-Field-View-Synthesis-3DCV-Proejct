@@ -1,22 +1,25 @@
 #Network
-n_classes:          12
-image_size:         512
-attention_mask:     True
-input_domain:       'RGB'
+image_size:         128
+in_channels:        27
+channels:           [64, 128, 128, 256, 512]
+norm:               'Group'
+running_stats:      False
+up_mode:            'bilinear'
+depth:              1
 
 #Training
-smoothing:          0.2
+w_kl:               0
 n_epochs:           100
 lr:                 5e-4
-bs:                 18
+bs:                 30
 weight_decay:       1e-5
 workers:            20
-savename:           'Efficientnet_B0-CORRECT_SUBMISSION_12_5050_SMOOTHING0.2_ATTENTION'
-train_size:         65000
-evaluation_size:    10000
-test_size:          5000
+savename:           'test'
+train_size:         3000
+test_size:          50
 GPU:                [2]
 
 #Paths
-network_variation_setup_file:   '/export/home/mdorkenw/code/ALASKA2/network_variation_setup.txt'
-save_path:                      '/export/data/mdorkenw/results/alaska/'
+img_path:                       '/export/data/mdorkenw/data/lightfield/full_data/'
+network_variation_setup_file:   '/export/home/mdorkenw/code/Lightfield/network_variation_setup.txt'
+save_path:                      '/export/data/mdorkenw/results/lightfield/delete/'
