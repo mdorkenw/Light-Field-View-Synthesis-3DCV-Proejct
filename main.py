@@ -28,10 +28,12 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
-        input = file_dict["input"].type(torch.FloatTensor).cuda()
+        x1 = file_dict["x1"].type(torch.FloatTensor).cuda()
+        x2 = file_dict["x2"].type(torch.FloatTensor).cuda()
+        x3 = file_dict["x3"].type(torch.FloatTensor).cuda()
 
-        img_recon, mu, covar = network(input)
-        loss, loss_recon, loss_kl = loss_func(img_recon, input, mu, covar)
+        img_recon, mu, covar = network(x1, x2)
+        loss, loss_recon, loss_kl = loss_func(img_recon, x3, mu, covar)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -45,7 +47,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
             data_iter.set_description(inp_string)
 
     ## Save images
-    aux.save_images(img_recon, input, dic, epoch, 'train')
+    aux.save_images(img_recon, x1, x2, x3, dic, epoch, 'train')
     ### Empty GPU cache
     torch.cuda.empty_cache()
     loss_track.get_mean()
@@ -61,10 +63,12 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
-        input = file_dict["input"].type(torch.FloatTensor).cuda()
+        x1 = file_dict["x1"].type(torch.FloatTensor).cuda()
+        x2 = file_dict["x2"].type(torch.FloatTensor).cuda()
+        x3 = file_dict["x3"].type(torch.FloatTensor).cuda()
 
-        img_recon, mu, covar = network(input)
-        loss, loss_recon, loss_kl = loss_func(img_recon, input, mu, covar)
+        img_recon, mu, covar = network(x1, x2)
+        loss, loss_recon, loss_kl = loss_func(img_recon, x3, mu, covar)
 
         loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
         loss_track.append(loss_dic)
@@ -75,7 +79,7 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
             data_iter.set_description(inp_string)
 
     ## Save images
-    aux.save_images(img_recon, input, dic, epoch, 'test')
+    aux.save_images(img_recon, x1, x2, x3, dic, epoch, 'test')
 
     ### Empty GPU cache
     torch.cuda.empty_cache()

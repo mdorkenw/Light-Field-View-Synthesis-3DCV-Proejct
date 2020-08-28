@@ -9,9 +9,12 @@ class Loss(nn.Module):
         super(Loss, self).__init__()
         self.w_kl = dic['w_kl']
 
-    def forward(self, inp, target, mu, covar):
+    def forward(self, inp, target, mus, covars):
 
-        L_kl = KLDLoss(mu, covar)
+        L_kl = 0
+        for mu, covar in zip(mus, covars):
+            L_kl += KLDLoss(mu, covar)
+        L_kl /= len(mus)
 
         L_recon = torch.mean((inp - target) **2)
 

@@ -167,15 +167,23 @@ def denorm(x):
     return out.clamp_(0, 1)
 
 
-def save_images(recon, target, opt, epoch, mode):
+def save_images(recon, x1, x2, x3, opt, epoch, mode):
     recon = recon.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
-    target = target.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
+    x3 = x3.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
+    x2 = x2.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
+    x1 = x1.reshape(recon.size(0), -1, 3, opt.Network['image_size'], opt.Network['image_size'])
 
-    for i in range(5):
+    for i in range(3):
         torchvision.utils.save_image(denorm(recon[i]).float().cpu().data, opt.Paths['save_path'] + \
                                      '/images/{:03d}_seq_generated_{:03d}'.format(epoch + 1, i) + mode + '.png',
                                      normalize=True)
-        torchvision.utils.save_image(denorm(target[i]).float().cpu().data, opt.Paths['save_path'] + \
+        torchvision.utils.save_image(denorm(x3[i]).float().cpu().data, opt.Paths['save_path'] + \
                                      '/images/{:03d}_seq_original_{:03d}'.format(epoch + 1, i) + mode + '.png')
+
+        torchvision.utils.save_image(denorm(x1[i]).float().cpu().data, opt.Paths['save_path'] + \
+                                     '/images/{:03d}_inter1_{:03d}'.format(epoch + 1, i) + mode + '.png')
+
+        torchvision.utils.save_image(denorm(x2[i]).float().cpu().data, opt.Paths['save_path'] + \
+                                     '/images/{:03d}_inter2_{:03d}'.format(epoch + 1, i) + mode + '.png')
 
 

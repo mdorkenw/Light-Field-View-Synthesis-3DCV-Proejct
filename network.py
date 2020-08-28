@@ -62,11 +62,15 @@ class Encode_block(nn.Module):
 #########################-- Decoder Block --#########################################################
 #####################################################################################################
 class Decode_block(nn.Module):
-    def __init__(self, n_in, n_out, pars):
+    def __init__(self, n_in, n_out, pars, iter):
         super(Decode_block, self).__init__()
 
         self.dic  = pars
+        self.skips = pars['skips']
         self.activate = nn.LeakyReLU(0.2, inplace=True)
+
+        if self.skips:
+            n_in += pars['channels'][-(1 + iter)]
 
         self.upsample = nn.Sequential(*up(n_in, n_in, mode=pars['up_mode']))
 
@@ -85,7 +89,9 @@ class Decode_block(nn.Module):
         self.down = [nn.Conv2d(n_in, n_out, 1), Norm(n_out, pars)]
         self.down = nn.Sequential(*self.down)
 
-    def forward(self, x):
+    def forward(self, x, skip_connc):
+        if self.skips:
+            x = torch.cat((x, skip_connc), dim=1)
         x = self.upsample(x)
         return self.activate(self.resnet(x) + self.down(x))
 
@@ -104,14 +110,14 @@ class VAE(nn.Module):
             in_channels = out_channels
         self.encode = nn.Sequential(*self.encode)
 
-        self.conv_mu  = nn.Conv2d(dic['channels'][-1], dic['channels'][-1], 3, 1, 1)
-        self.conv_var = nn.Conv2d(dic['channels'][-1], dic['channels'][-1], 3, 1, 1)
+        self.conv_mu  = nn.Sequential(*[nn.Conv2d(c, c, 3, 1, 1) for c in dic['channels']])
+        self.conv_var = nn.Sequential(*[nn.Conv2d(c, c, 3, 1, 1) for c in dic['channels']])
 
         ### Create Decoder Module
         in_channels = dic['channels'][-1]
         self.decode = []
-        for out_channels in reversed(dic['channels']):
-            self.decode.append(Decode_block(in_channels, out_channels, dic))
+        for i, out_channels in enumerate(reversed(dic['channels'])):
+            self.decode.append(Decode_block(in_channels, out_channels, dic, i))
             in_channels = out_channels
         self.decode.extend([nn.Conv2d(dic['channels'][0], dic['in_channels'], 3, 1, 1), nn.Tanh()])
         self.decode = nn.Sequential(*self.decode)
@@ -131,28 +137,42 @@ class VAE(nn.Module):
             self.weight_init(m)
 
     def encoder(self, x):
+        skips = []
         for i, module in enumerate(self.encode):
             x = module(x)
-        return self.reparameterize(x)
+            skips.append(x)
+        return self.reparameterize(skips)
 
-    def decoder(self, x):
+    def decoder(self, x, skips):
         for i, module in enumerate(self.decode):
-            x = module(x)
+            try:
+                x = module(x, skips[-(i + 1)])
+            except IndexError:
+                x = module(x)
         return x
 
-    def interpolate(self, out1, out2, lamb):
-        return [out1[-1] + lamb * (out2[-1] - out1[-1])]
+    def interpolate(self, out1, out2):
+        out = []
+        for skip1, skip2 in zip(out1, out2):
+            out.append(skip1 + 0.5 * (skip2 - skip1))
+        return out
 
     def get_latent_var(self, x):
         return self.encoder(x)
 
-    def reparameterize(self, emb):
-        mu, logvar = self.conv_mu(emb), self.conv_var(emb)
-        eps = torch.FloatTensor(logvar.size()).normal_().cuda()
-        std = logvar.mul(0.5).exp_()
-        return eps.mul(std).add_(mu), mu, logvar
+    def reparameterize(self, skips):
+        out, mus, vars = [], [], []
+        for i, skip in enumerate(skips):
+            mu, logvar = self.conv_mu[i](skip), self.conv_var[i](skip)
+            eps = torch.FloatTensor(logvar.size()).normal_().cuda()
+            std = logvar.mul(0.5).exp_()
+            out.append(eps.mul(std).add_(mu)); mus.append(mu); vars.append(logvar)
+        return out, mus, vars
 
-    def forward(self, x):
-        embed, mu, covar = self.encoder(x)
-        img_recon     = self.decoder(embed)
+    def forward(self, x1, x2):
+        skip1, mu, covar = self.encoder(x1)
+        skip2, mu, covar = self.encoder(x2)
+
+        skips_inter = self.interpolate(skip1, skip2)
+        img_recon   = self.decoder(skips_inter[-1], skips_inter)
         return img_recon, mu, covar

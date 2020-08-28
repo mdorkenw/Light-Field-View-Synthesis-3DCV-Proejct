@@ -9,7 +9,7 @@ class RandomRightAngleRotation:
     """ Rotate by a multiple of 90°. Only behaves sensibly for square images! """
 
     def __init__(self):
-        self.angles = [-90,0,90,180]
+        self.angles = [-90, 0, 90, 180]
 
     def __call__(self, x):
         angle = random.choice(self.angles)
@@ -64,16 +64,16 @@ class dataset(torch.utils.data.Dataset):
         seed = np.random.randint(2147483647)
 
         rand_scene = np.random.randint(0, len(self.scenes))
-        vertical  = np.random.choice(2, 1)[0]
+        choice  = np.random.choice(3, 1)[0]
 
-        if vertical:
-            input = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 4).zfill(3)
-                                   + ".png", seed) for i in range(0, 81, 9)]
-        else:
-            input = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 36).zfill(3)
-                                   + ".png", seed) for i in range(9)]
+        x1 = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 4).zfill(3)
+                            + ".png", seed) for i in range(0, 81, 9)]
+        x2 = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 36).zfill(3)
+                            + ".png", seed) for i in range(9)]
+        x3 = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i * 10).zfill(3)
+                            + ".png", seed) for i in range(9)]
 
-        return {'input': torch.cat(input, dim=0)}
+        return {'x1': torch.cat(x1, dim=0), 'x2': torch.cat(x2, dim=0), 'x3': torch.cat(x3, dim=0)}
 
     def __len__(self):
         return self.length
