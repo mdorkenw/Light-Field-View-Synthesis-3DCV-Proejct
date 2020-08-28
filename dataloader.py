@@ -1,8 +1,19 @@
 import numpy as np
 import torch, os
 from torchvision import transforms
+import torchvision.transforms.functional as TF
 from PIL import Image
 import random
+
+class RandomRightAngleRotation:
+    """ Rotate by a multiple of 90°. Only behaves sensibly for square images! """
+
+    def __init__(self):
+        self.angles = [-90,0,90,180]
+
+    def __call__(self, x):
+        angle = random.choice(self.angles)
+        return TF.rotate(x, angle)
 
 class dataset(torch.utils.data.Dataset):
     def __init__(self, opt, mode='train'):
@@ -22,8 +33,8 @@ class dataset(torch.utils.data.Dataset):
 
         self.augment_train = transforms.Compose([
              transforms.Resize(self.img_size),
-             transforms.RandomVerticalFlip(p=0.5),
              transforms.RandomHorizontalFlip(p=0.5),
+             RandomRightAngleRotation(),
              transforms.ColorJitter(brightness=0.4, contrast=0.5, saturation=0.4, hue=0.15),
              transforms.ToTensor(),
              transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -56,11 +67,11 @@ class dataset(torch.utils.data.Dataset):
         vertical  = np.random.choice(2, 1)[0]
 
         if vertical:
-            input = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 45).zfill(3)
-                                   + ".png", seed) for i in range(9)]
-        else:
             input = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 4).zfill(3)
                                    + ".png", seed) for i in range(0, 81, 9)]
+        else:
+            input = [self.load_img(self.img_path + self.scenes[rand_scene] + "/" + 'input_Cam' + str(i + 36).zfill(3)
+                                   + ".png", seed) for i in range(9)]
 
         return {'input': torch.cat(input, dim=0)}
 
