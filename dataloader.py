@@ -42,7 +42,7 @@ class dataset(torch.utils.data.Dataset):
 
     def load_img(self, data_path, seed):
         img = Image.open(data_path)
-        if self.mode =='test':
+        if self.mode == 'train':
             random.seed(seed)
             return self.augment_train(img)
         else:

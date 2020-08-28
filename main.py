@@ -41,7 +41,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
 
         if image_idx % 20 == 0:
             _, loss_recon, loss_kl = loss_track.get_iteration_mean()
-            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 2), np.round(loss_kl, 3))
+            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
             data_iter.set_description(inp_string)
 
     ## Save images
@@ -71,7 +71,7 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
 
         if image_idx % 20 == 0:
             _, loss_recon, loss_kl = loss_track.get_iteration_mean()
-            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 2), np.round(loss_kl, 3))
+            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
             data_iter.set_description(inp_string)
 
     ## Save images
