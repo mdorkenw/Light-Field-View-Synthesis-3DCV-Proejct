@@ -16,7 +16,7 @@ class Loss(nn.Module):
             L_kl += KLDLoss(mu, covar)
         L_kl /= len(mus)
 
-        L_recon = torch.mean((inp - target) **2)
+        L_recon = torch.mean(torch.abs(inp - target))
 
         Loss = L_kl * self.w_kl + L_recon
 

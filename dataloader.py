@@ -31,6 +31,7 @@ class dataset(torch.utils.data.Dataset):
             self.scenes   = os.listdir(self.img_path + mode)
             self.img_path = opt.Paths['img_path'] + 'test/'
 
+        ## TODO add random crop and remove resize - still using flips?
         self.augment_train = transforms.Compose([
              transforms.Resize(self.img_size),
              transforms.RandomHorizontalFlip(p=0.5),

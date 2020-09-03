@@ -1,7 +1,7 @@
 #Network
 image_size:         128
 in_channels:        27
-channels:           [64, 128, 256, 256, 512]
+channels:           [64, 128, 256, 256, 512, 256]
 norm:               'Group'
 running_stats:      False
 up_mode:            'bilinear'
@@ -9,16 +9,16 @@ depth:              1
 skips:              True
 
 #Training
-w_kl:               0.001
+w_kl:               0.00001
 n_epochs:           100
 lr:                 5e-4
 bs:                 35
 weight_decay:       1e-4
 workers:            35
-savename:           'w_KL'
+savename:           'w_KL_smaller'
 train_size:         30000
 test_size:          50
-GPU:                [4]
+GPU:                [5]
 
 #Paths
 img_path:                       '/export/data/mdorkenw/data/lightfield/full_data/'
