@@ -55,11 +55,15 @@ class dataset(torch.utils.data.Dataset):
 
         rand_scene = np.random.randint(0, len(self.scenes))
 
-        vertical = [self.load_img(self.get_image_path(rand_scene, i + 4), seed) for i in range(0, 81, 9)]
-        horizontal = [self.load_img(self.get_image_path(rand_scene, i + 36), seed) for i in range(9)]
-        diagonal = [self.load_img(self.get_image_path(rand_scene, i * 10), seed) for i in range(9)]
+        row = np.random.randint(3)
 
-        return {'x1': torch.cat(vertical, dim=0), 'x2': torch.cat(horizontal, dim=0), 'x3': torch.cat(diagonal, dim=0)}
+        if row == 0:
+            out = [self.load_img(self.get_image_path(rand_scene, i + 4), seed) for i in range(0, 81, 9)]
+        elif row == 1:
+            out = [self.load_img(self.get_image_path(rand_scene, i + 36), seed) for i in range(9)]
+        else:
+            out = [self.load_img(self.get_image_path(rand_scene, i * 10), seed) for i in range(9)]
+        return {'x': torch.stack(out, dim=0)}
 
     def __len__(self):
         return self.length

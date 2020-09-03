@@ -27,17 +27,17 @@ class ConditionalNorm2d(nn.Module):
         return out
 
 
-class Norm2D(nn.Module):
+class Norm3D(nn.Module):
     def __init__(self, num_features, dic, num_groups=16):
         super().__init__()
         name = dic['norm']
         self.num_features = num_features
         if name == 'BN' or name == 'batch':
-            self.bn = nn.BatchNorm2d(num_features, affine=True, track_running_stats=dic['running_stats'])
+            self.bn = nn.BatchNorm3d(num_features, affine=True, track_running_stats=dic['running_stats'])
         elif name == 'group' or name == 'Group':
             self.bn = nn.GroupNorm(num_groups, num_features, affine=True)
         elif name == 'instance':
-            self.bn = nn.InstanceNorm2d(num_features, affine=True, track_running_stats=dic['running_stats'])
+            self.bn = nn.InstanceNorm3d(num_features, affine=True, track_running_stats=dic['running_stats'])
         else:
             raise NotImplementedError('Normalization Method not implemented: ', name)
 

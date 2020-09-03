@@ -28,12 +28,10 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
-        x1 = file_dict["x1"].type(torch.FloatTensor).cuda()
-        x2 = file_dict["x2"].type(torch.FloatTensor).cuda()
-        x3 = file_dict["x3"].type(torch.FloatTensor).cuda()
+        x = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
 
-        img_recon, mu, covar = network(x1, x2)
-        loss, loss_recon, loss_kl = loss_func(img_recon, x3, mu, covar)
+        img_recon, mu, covar = network(x)
+        loss, loss_recon, loss_kl = loss_func(img_recon, x, mu, covar)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -47,7 +45,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
             data_iter.set_description(inp_string)
 
     ## Save images
-    aux.save_images(img_recon, x1, x2, x3, dic, epoch, 'train')
+    aux.save_images(img_recon, x, dic, epoch, 'train')
     ### Empty GPU cache
     torch.cuda.empty_cache()
     loss_track.get_mean()
@@ -61,25 +59,24 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
     data_iter = tqdm(data_loader, position=2)
     inp_string = 'Epoch {} || Loss: --- | Acc: ---'.format(epoch)
     data_iter.set_description(inp_string)
-    for image_idx, file_dict in enumerate(data_iter):
+    with torch.no_grad():
+        for image_idx, file_dict in enumerate(data_iter):
 
-        x1 = file_dict["x1"].type(torch.FloatTensor).cuda()
-        x2 = file_dict["x2"].type(torch.FloatTensor).cuda()
-        x3 = file_dict["x3"].type(torch.FloatTensor).cuda()
+            x = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
 
-        img_recon, mu, covar = network(x1, x2)
-        loss, loss_recon, loss_kl = loss_func(img_recon, x3, mu, covar)
+            img_recon, mu, covar = network(x)
+            loss, loss_recon, loss_kl = loss_func(img_recon, x, mu, covar)
 
-        loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
-        loss_track.append(loss_dic)
+            loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
+            loss_track.append(loss_dic)
 
-        if image_idx % 20 == 0:
-            _, loss_recon, loss_kl = loss_track.get_iteration_mean()
-            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
-            data_iter.set_description(inp_string)
+            if image_idx % 20 == 0:
+                _, loss_recon, loss_kl = loss_track.get_iteration_mean()
+                inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
+                data_iter.set_description(inp_string)
 
     ## Save images
-    aux.save_images(img_recon, x1, x2, x3, dic, epoch, 'test')
+    aux.save_images(img_recon, x, dic, epoch, 'test')
 
     ### Empty GPU cache
     torch.cuda.empty_cache()
