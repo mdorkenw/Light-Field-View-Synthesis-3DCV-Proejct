@@ -1,3 +1,5 @@
 
 teststuff.ipynb
 .ipynb_checkpoints/teststuff-checkpoint.ipynb
+*.pyc
+setup_valen.txt

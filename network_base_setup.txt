@@ -19,6 +19,12 @@ train_size:         50000
 test_size:          500
 GPU:                [5]
 
+#Dataloader
+flip:               True
+mirror:             True
+rotate:             True
+return_mode:        'random'
+
 #Paths
 img_path:                       '/export/data/mdorkenw/data/lightfield/full_data/'
 network_variation_setup_file:   '/export/home/mdorkenw/code/Lightfield/network_variation_setup.txt'
