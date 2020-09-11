@@ -32,6 +32,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
 
         img_recon, mu, covar = network(x)
         loss, loss_recon, loss_kl = loss_func(img_recon, x, mu, covar)
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

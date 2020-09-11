@@ -92,7 +92,7 @@ class VAE(nn.Module):
 
     @staticmethod
     def weight_init(m):
-        if isinstance(m, nn.Conv2d):
+        if isinstance(m, nn.Conv3d):
             init.xavier_normal_(m.weight)
             init.constant_(m.bias, 0)
 
@@ -102,19 +102,16 @@ class VAE(nn.Module):
 
     def encoder(self, x):
         for i, module in enumerate(self.encode):
+            # if i == 0 or i == 1 :
+            #     breakpoint()
             x = module(x)
+
         return self.reparameterize(x)
 
     def decoder(self, x,):
         for i, module in enumerate(self.decode):
             x = module(x)
         return x
-
-    def interpolate(self, out1, out2):
-        out = []
-        for skip1, skip2 in zip(out1, out2):
-            out.append(skip1 + 0.5 * (skip2 - skip1))
-        return out
 
     def get_latent_var(self, x):
         return self.encoder(x)

@@ -8,16 +8,16 @@ up_mode:            'bilinear'
 skips:              False
 
 #Training
-w_kl:               0
+w_kl:               1e-8
 n_epochs:           100
 lr:                 5e-4
 bs:                 50
-weight_decay:       1e-4
+weight_decay:       1e-5
 workers:            50
 savename:           'w_KL_smaller'
-train_size:         50000
+train_size:         500
 test_size:          500
-GPU:                [5]
+GPU:                [1]
 
 #Dataloader
 flip:               True
