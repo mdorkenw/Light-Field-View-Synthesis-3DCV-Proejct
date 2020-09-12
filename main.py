@@ -8,6 +8,7 @@ import dataloader as dloader
 import argparse
 from distutils.dir_util import copy_tree
 from datetime import datetime
+from pathlib import Path
 
 seed = 42
 print(f'setting everything to seed {seed}')
@@ -124,14 +125,10 @@ def main(opt):
         os.makedirs(save_path)
     opt.Paths['save_path'] = save_path
 
-    def make_folder(name):
-        if not os.path.exists(name):
-            os.makedirs(name)
-
     # Make summary plots, images, segmentation and videos folder
     save_summary = save_path + '/summary_plots'
-    make_folder(save_path + '/summary_plots')
-    make_folder(save_path + '/images')
+    Path(save_path + '/summary_plots').mkdir(parents=True, exist_ok=True)
+    Path(save_path + '/images').mkdir(parents=True, exist_ok=True)
 
     ### Copy Code !!
     copy_tree('./', save_path + '/code/')
