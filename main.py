@@ -10,15 +10,6 @@ from distutils.dir_util import copy_tree
 from datetime import datetime
 from pathlib import Path
 
-seed = 42
-print(f'setting everything to seed {seed}')
-random.seed(seed)
-os.environ['PYTHONHASHSEED'] = str(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.backends.cudnn.deterministic = True
-
 
 def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler):
 
@@ -86,6 +77,16 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
 
 def main(opt):
     """============================================"""
+    
+    seed = 42
+    print(f'setting everything to seed {seed}') # Appears multiple times?!
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    
     ### Create Network
     network = net.VAE(opt.Network).cuda()
 

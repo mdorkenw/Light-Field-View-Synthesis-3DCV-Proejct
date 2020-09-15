@@ -5,6 +5,9 @@ import torchvision.transforms.functional as TF
 from PIL import Image, ImageOps
 import random
 
+""" Does not work with files in the train/test folders!!
+"""
+
 class dataset(torch.utils.data.Dataset):
     def __init__(self, opt, mode = 'train', return_mode = ''):
         """ Dataset class.
