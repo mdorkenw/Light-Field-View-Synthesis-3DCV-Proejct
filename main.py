@@ -63,7 +63,7 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
             loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
             loss_track.append(loss_dic)
 
-            if image_idx % 20 == 0:
+            if image_idx % 10 == 0:
                 _, loss_recon, loss_kl = loss_track.get_iteration_mean()
                 inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
                 data_iter.set_description(inp_string)
@@ -79,7 +79,7 @@ def main(opt):
     """============================================"""
     
     seed = 42
-    print(f'setting everything to seed {seed}') # Appears multiple times?!
+    print(f'\nsetting everything to seed {seed}')
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -93,7 +93,7 @@ def main(opt):
     ###### Define Optimizer ######
     loss_func   = Loss.Loss(opt.Training)
     optimizer   = torch.optim.Adam(network.parameters(), lr=opt.Training['lr'], weight_decay=opt.Training['weight_decay'])
-    scheduler   = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=1, min_lr=1e-8,
+    scheduler   = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=opt.Training['sched_factor'], patience=opt.Training['sched_patience'], min_lr=1e-8,
                                                              threshold=0.0001, threshold_mode='abs')
 
     ###### Create Dataloaders ######
@@ -132,7 +132,7 @@ def main(opt):
     Path(save_path + '/images').mkdir(parents=True, exist_ok=True)
 
     ### Copy Code !!
-    copy_tree('./', save_path + '/code/')
+    if opt.Misc["copy_code"]: copy_tree('./', save_path + '/code/') # Does not work for me, I think the paths are too long for windows
     save_str = aux.gimme_save_string(opt)
 
     ### Save rudimentary info parameters to text-file and pkl.
@@ -165,12 +165,18 @@ def main(opt):
         validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
 
         ## Best Validation Score
-        current_auc = loss_track_test.get_current_mean()[-1]
+        current_auc = loss_track_test.get_current_mean()[0] # Was [-1], but should be [0]?
         if current_auc > best_val_auc:
             ###### SAVE CHECKPOINTS ########
             save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}
             torch.save(save_dict, opt.Paths['save_path'] + '/checkpoint_best_val.pth.tar')
             best_val_auc = current_auc
+        
+        ## Always save occasionally
+        if epoch % opt.Training['save_every']:
+            ###### SAVE CHECKPOINTS ########
+            save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}
+            torch.save(save_dict, opt.Paths['save_path'] + '/checkpoint_epoch_{}.pth.tar'.format(epoch))
 
         ###### Logging Epoch Data ######]
         epoch_time =  time.time() - epoch_time

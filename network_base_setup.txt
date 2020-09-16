@@ -18,14 +18,20 @@ savename:           'w_KL_smaller'
 train_size:         500
 test_size:          500
 GPU:                [1]
+sched_factor:       0.5
+sched_patience:     1
+save_every:         10
 
 #Dataloader
 flip:               True
 mirror:             True
 rotate:             True
-return_mode:        'random'
+return_mode:        'random_hor_vert'
 
 #Paths
 img_path:                       '/export/data/mdorkenw/data/lightfield/full_data/'
 network_variation_setup_file:   '/export/home/mdorkenw/code/Lightfield/network_variation_setup.txt'
 save_path:                      '/export/data/mdorkenw/results/lightfield/delete/'
+
+#Misc
+copy_code:			True
