@@ -19,6 +19,7 @@ class dataset(torch.utils.data.Dataset):
         if not mode in ['train','test']: raise NameError('Mode does not exist!')
         
         self.img_size = opt.Network['image_size'] # Output size of images
+        self.mask_edge = opt.Dataloader['mask_edge']
         self.mode = mode # train or test
         self.return_mode = return_mode if return_mode else opt.Dataloader['return_mode']
         if not self.return_mode in ['random','random_hor_vert','hor_vert','all']: raise NameError('Return mode does not exist!')
@@ -64,6 +65,9 @@ class dataset(torch.utils.data.Dataset):
         mirror  =   bool(random.getrandbits(1)) if self.mirror else False
         rotate  =   bool(random.getrandbits(1)) if self.rotate else False
         return flip, mirror, rotate
+    
+    ## Get Masks
+    
     
     ## Get stacks
     def get_horizontal(self, scene, to_tensor = True, row = 4):

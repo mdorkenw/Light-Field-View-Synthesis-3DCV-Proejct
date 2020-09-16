@@ -18,7 +18,7 @@ savename:           'w_KL_smaller'
 train_size:         5000
 test_size:          500
 GPU:                [3]
-use_sched:			False
+use_sched:          False
 sched_factor:       0.5
 sched_patience:     1
 save_every:         10
@@ -28,7 +28,7 @@ flip:               True
 mirror:             True
 rotate:             True
 return_mode:        'random_hor_vert'
-mask_edge:			8
+mask_edge:          8
 
 #Paths
 img_path:                       '/export/data/mdorkenw/data/lightfield/full_data/'
@@ -36,4 +36,4 @@ network_variation_setup_file:   '/export/home/mdorkenw/code/Lightfield/network_v
 save_path:                      '/export/data/mdorkenw/results/lightfield/delete/'
 
 #Misc
-copy_code:           True
+copy_code:          True
