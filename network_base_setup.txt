@@ -29,6 +29,7 @@ mirror:             True
 rotate:             True
 return_mode:        'random_hor_vert'
 mask_edge:          8
+use_mask:           True
 
 #Paths
 img_path:                       '/export/data/mdorkenw/data/lightfield/full_data/'

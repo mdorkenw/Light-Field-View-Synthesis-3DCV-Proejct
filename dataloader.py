@@ -19,6 +19,7 @@ class dataset(torch.utils.data.Dataset):
         if not mode in ['train','test']: raise NameError('Mode does not exist!')
         
         self.img_size = opt.Network['image_size'] # Output size of images
+        self.use_mask = opt.Dataloader['use_mask']
         self.mask_edge = opt.Dataloader['mask_edge']
         self.mode = mode # train or test
         self.return_mode = return_mode if return_mode else opt.Dataloader['return_mode']
@@ -67,7 +68,19 @@ class dataset(torch.utils.data.Dataset):
         return flip, mirror, rotate
     
     ## Get Masks
-    
+    def get_mask(self,tensor,direction,use_mask):
+        """ Get masks for loss. """
+        if not use_mask: return(torch.ones(tensor.shape))
+        mask = torch.zeros(tensor.shape)
+        if direction == 'horizontal':
+            mask[...,:,self.mask_edge:-self.mask_edge] = 1
+        elif direction == 'vertical':
+            mask[...,self.mask_edge:-self.mask_edge,:] = 1
+        elif direction == 'diagonal':
+            mask[...,self.mask_edge:-self.mask_edge,self.mask_edge:-self.mask_edge] = 1
+        else:
+            mask = torch.ones(tensor.shape)
+        return(mask)
     
     ## Get stacks
     def get_horizontal(self, scene, to_tensor = True, row = 4):
@@ -177,9 +190,14 @@ class dataset(torch.utils.data.Dataset):
             return {'x': out}
             
         elif self.return_mode == 'random_hor_vert': # Return either horizontal or vertical
-            if self.mode == 'train':    out = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())[np.random.randint(2)]
-            else:                       out = self.get_hor_vert(scene)[np.random.randint(2)]
-            return {'x': out}
+            direction = np.random.randint(2)
+            if self.mode == 'train':
+                out = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())[direction]
+                mask = self.get_mask(out,['horizontal','vertical'][direction],self.use_mask)
+            else:
+                out = self.get_hor_vert(scene)[direction]
+                mask = self.get_mask(out,['horizontal','vertical'][direction],self.use_mask)
+            return {'x': out, 'x_mask': mask}
             
         elif self.return_mode == 'hor_vert': # Return horizontal and vertical
             if self.mode == 'train':    hor, vert = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())
