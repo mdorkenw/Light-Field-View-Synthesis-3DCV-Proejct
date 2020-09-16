@@ -3,8 +3,6 @@ import torch.nn as nn, torch
 from torch.nn import init
 import torch.nn.functional as F
 
-from utils.normalization_layer import Norm3D as Norm
-
 
 ######################### Resnet Block down ##############################################################
 
@@ -13,7 +11,7 @@ class ResnetBlock_down(nn.Module):
         super(ResnetBlock_down, self).__init__()
         self.norm = pars['norm']
         self.activate = nn.LeakyReLU(0.2, inplace=True)
-        self.bn = Norm(n_in, pars)
+        self.bn = nn.BatchNorm3d(n_in)
 
         self.left = [nn.Conv3d(n_in, n_out, 3, stride=(stride_v, stride_r, stride_r), padding=1),  self.activate]
         self.left = nn.Sequential(*self.left)
@@ -32,7 +30,7 @@ class ResnetBlock_up(nn.Module):
         super(ResnetBlock_up, self).__init__()
         self.norm = pars['norm']
         self.activate = nn.LeakyReLU(0.2, inplace=True)
-        self.bn = Norm(n_in, pars)
+        self.bn = nn.BatchNorm3d(n_in)
 
         self.left = [nn.ConvTranspose3d(n_in, n_out, 3, stride=(stride_v, stride_r, stride_r), padding=1,
                                         output_padding=(0, stride_r-1, stride_r-1)),  self.activate]

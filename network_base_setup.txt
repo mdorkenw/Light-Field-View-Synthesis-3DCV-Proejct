@@ -8,16 +8,16 @@ up_mode:            'bilinear'
 skips:              False
 
 #Training
-w_kl:               1e-8
+w_kl:               1e-1
 n_epochs:           100
 lr:                 5e-4
-bs:                 50
+bs:                 10
 weight_decay:       1e-5
 workers:            50
 savename:           'w_KL_smaller'
-train_size:         500
+train_size:         5000
 test_size:          500
-GPU:                [1]
+GPU:                [3]
 sched_factor:       0.5
 sched_patience:     1
 save_every:         10
@@ -34,4 +34,4 @@ network_variation_setup_file:   '/export/home/mdorkenw/code/Lightfield/network_v
 save_path:                      '/export/data/mdorkenw/results/lightfield/delete/'
 
 #Misc
-copy_code:			True
+copy_code:           True
