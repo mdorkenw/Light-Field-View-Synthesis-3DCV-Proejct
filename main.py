@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler):
+def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler, use_scheduler):
 
     _ = network.train()
     loss_track.reset()
@@ -42,7 +42,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     ### Empty GPU cache
     torch.cuda.empty_cache()
     loss_track.get_mean()
-    scheduler.step(loss_track.get_current_mean()[0])
+    if use_scheduler: scheduler.step(loss_track.get_current_mean()[0])
 
 
 def validator(network, dic, epoch, data_loader, loss_track, loss_func):
@@ -102,7 +102,7 @@ def main(opt):
                                                     batch_size=opt.Training['bs'], shuffle=True)
     test_dataset       = dloader.dataset(opt, mode='test')
     test_data_loader   = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],
-                                                     batch_size=opt.Training['bs'], shuffle=False)
+                                                     batch_size=opt.Training['bs'], shuffle=False) # Our dataloader always shuffles!
 
     ###### Set Logging Files ######
     dt = datetime.now()
@@ -158,7 +158,7 @@ def main(opt):
 
         ##### Training ########
         epoch_iterator.set_description("Training with lr={}".format(np.round([group['lr'] for group in optimizer.param_groups][0], 6)))
-        trainer(network, opt, epoch, train_data_loader, loss_track_train, optimizer, loss_func, scheduler)
+        trainer(network, opt, epoch, train_data_loader, loss_track_train, optimizer, loss_func, scheduler, opt.Training['use_sched'])
 
         ###### Validation #########
         epoch_iterator.set_description('Validating...')
