@@ -175,7 +175,7 @@ def main(opt):
             best_val_auc = current_auc
         
         ## Always save occasionally
-        if epoch % opt.Training['save_every']:
+        if epoch % opt.Training['save_every'] == 0:
             ###### SAVE CHECKPOINTS ########
             save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}
             torch.save(save_dict, opt.Paths['save_path'] + '/checkpoint_epoch_{}.pth.tar'.format(epoch))
