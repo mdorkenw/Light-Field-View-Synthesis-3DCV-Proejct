@@ -23,7 +23,7 @@ class dataset(torch.utils.data.Dataset):
         self.mask_edge = opt.Dataloader['mask_edge']
         self.mode = mode # train or test
         self.return_mode = return_mode if return_mode else opt.Dataloader['return_mode']
-        if not self.return_mode in ['random','random_hor_vert','hor_vert','all']: raise NameError('Return mode does not exist!')
+        if not self.return_mode in ['random','random_hor_vert','hor_vert','all','hor','vert']: raise NameError('Return mode does not exist!')
         self.flip, self.mirror, self.rotate = opt.Dataloader['flip'], opt.Dataloader['mirror'], opt.Dataloader['rotate']
         self.seed = np.random.randint(2147483647) # Initialize first random seed, only relevant if not using [] to get elements
         
@@ -189,8 +189,8 @@ class dataset(torch.utils.data.Dataset):
             else:                       out = self.get_random_direction(scene)
             return {'x': out}
             
-        elif self.return_mode == 'random_hor_vert': # Return either horizontal or vertical
-            direction = np.random.randint(2)
+        elif self.return_mode in ['random_hor_vert','hor','vert']: # Return either horizontal or vertical
+            direction = np.random.randint(2) if self.return_mode == 'random_hor_vert' else np.where(np.asarray(['hor','vert']) == self.return_mode)[0][0]
             if self.mode == 'train':
                 out = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())[direction]
                 mask = self.get_mask(out,['horizontal','vertical'][direction],self.use_mask)

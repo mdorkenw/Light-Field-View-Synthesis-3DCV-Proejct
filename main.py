@@ -11,6 +11,11 @@ from datetime import datetime
 from pathlib import Path
 
 
+""" - Dataloader mask for all options
+    - Larger learning rate?
+"""
+
+
 def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler, use_scheduler):
 
     _ = network.train()
@@ -21,7 +26,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     for image_idx, file_dict in enumerate(data_iter):
 
         x = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
-        x_mask = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
+        x_mask = file_dict["x_mask"].type(torch.FloatTensor).cuda().transpose(1, 2)
 
         img_recon, mu, covar = network(x)
         loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
@@ -57,7 +62,7 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
         for image_idx, file_dict in enumerate(data_iter):
 
             x = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
-            x_mask = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
+            x_mask = file_dict["x_mask"].type(torch.FloatTensor).cuda().transpose(1, 2)
 
             img_recon, mu, covar = network(x)
             loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
@@ -80,8 +85,8 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
 def main(opt):
     """============================================"""
     
-    seed = 42
-    print(f'\nsetting everything to seed {seed}')
+    seed = opt.Training['global_seed']
+    print(f'\nSetting everything to seed {seed}')
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)

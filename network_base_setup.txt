@@ -22,6 +22,7 @@ use_sched:          False
 sched_factor:       0.5
 sched_patience:     1
 save_every:         10
+global_seed:        42
 
 #Dataloader
 flip:               True
