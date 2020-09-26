@@ -39,3 +39,4 @@ save_path:                      '/export/data/mdorkenw/results/lightfield/delete
 
 #Misc
 copy_code:          True
+save_img_old:       True

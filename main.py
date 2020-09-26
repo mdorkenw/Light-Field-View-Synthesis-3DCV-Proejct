@@ -137,6 +137,7 @@ def main(opt):
     save_summary = save_path + '/summary_plots'
     Path(save_path + '/summary_plots').mkdir(parents=True, exist_ok=True)
     Path(save_path + '/images').mkdir(parents=True, exist_ok=True)
+    if opt.Misc['save_img_old']: Path(save_path + '/images_single').mkdir(parents=True, exist_ok=True)
 
     ### Copy Code !!
     if opt.Misc["copy_code"]: copy_tree('./', save_path + '/code/') # Does not work for me, I think the paths are too long for windows
