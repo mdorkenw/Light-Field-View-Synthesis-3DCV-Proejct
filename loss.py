@@ -42,14 +42,16 @@ class Loss(nn.Module):
         super(Loss, self).__init__()
         self.w_kl = dic['w_kl']
         self.kl_th = dic['kl_threshold']
+        self.use_kl = dic['use_kl']
+        self.use_kl_threshold = dic['use_kl_threshold']
 
     def forward(self, target, inp, mu, covar):
 
         L_kl = KLDLoss(mu, covar)
-        w_kl = 0 if L_kl.item() < self.kl_th else self.w_kl
+        w_kl = 0 if L_kl.item() < self.kl_th and self.use_kl_threshold else self.w_kl
 
         L_recon = torch.mean(torch.abs(inp - target))
 
-        L = L_recon# + L_kl * w_kl
+        L = L_recon + L_kl * w_kl if self.use_kl else L_recon
 
         return L, L_recon, L_kl

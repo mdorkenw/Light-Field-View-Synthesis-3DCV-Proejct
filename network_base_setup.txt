@@ -8,7 +8,9 @@ up_mode:            'bilinear'
 skips:              False
 
 #Training
+use_kl:             False
 w_kl:               0.1
+use_kl_threshold:   True
 kl_threshold:       200
 n_epochs:           100
 lr:                 1e-4
@@ -40,4 +42,4 @@ save_path:                      '/export/data/mdorkenw/results/lightfield/delete
 
 #Misc
 copy_code:          True
-save_img_old:       True
+save_img_old:       False
