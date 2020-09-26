@@ -174,9 +174,10 @@ def save_images(recon, x3, opt, epoch, mode):
         image = torch.cat([denorm(recon[i]).float().cpu().data,denorm(x3[i]).float().cpu().data])
         torchvision.utils.save_image(image, opt.Paths['save_path'] + '/images/{:03d}_seq_'.format(epoch + 1) + mode + '_{:03d}'.format(i) + '.png', nrow=9)
         
-        # torchvision.utils.save_image(denorm(recon[i]).float().cpu().data, opt.Paths['save_path'] + \
-                                        # '/images_single/{:03d}_seq_generated_{:03d}'.format(epoch + 1, i) + mode + '.png',normalize=True, nrow=9)
-        # torchvision.utils.save_image(denorm(x3[i]).float().cpu().data, opt.Paths['save_path'] + \
-                                        # '/images_single/{:03d}_seq_original_{:03d}'.format(epoch + 1, i) + mode + '.png', nrow=9)
+        if opt.Misc['save_img_old']:
+            torchvision.utils.save_image(denorm(recon[i]).float().cpu().data, opt.Paths['save_path'] + \
+                                            '/images_single/{:03d}_seq_generated_{:03d}'.format(epoch + 1, i) + mode + '.png',normalize=True, nrow=9)
+            torchvision.utils.save_image(denorm(x3[i]).float().cpu().data, opt.Paths['save_path'] + \
+                                            '/images_single/{:03d}_seq_original_{:03d}'.format(epoch + 1, i) + mode + '.png', nrow=9)
 
 
