@@ -118,7 +118,7 @@ class VAE(nn.Module):
         mu, logvar = self.conv_mu(x), self.conv_var(x)
         eps = torch.FloatTensor(logvar.size()).normal_().cuda()
         std = logvar.mul(0.5).exp_()
-        return eps.mul(std).add_(mu), mu, logvar
+        return eps.mul(std).add_(mu) if self.training else x, mu, logvar
 
     def forward(self, x):
         emb, mu, logvar = self.encoder(x)
