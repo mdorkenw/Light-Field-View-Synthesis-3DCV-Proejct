@@ -116,7 +116,7 @@ class VAE(nn.Module):
 
     def reparameterize(self, x):
         mu, logvar = self.conv_mu(x), self.conv_var(x)
-        eps = torch.FloatTensor(logvar.size()).normal_().cuda()
+        eps = torch.FloatTensor(logvar.size()).normal_().to(self.dic['device'])
         std = logvar.mul(0.5).exp_()
         return eps.mul(std).add_(mu) if self.training else x, mu, logvar
 

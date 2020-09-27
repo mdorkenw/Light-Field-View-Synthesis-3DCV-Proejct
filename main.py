@@ -25,8 +25,8 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
-        x = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
-        x_mask = file_dict["x_mask"].type(torch.FloatTensor).cuda().transpose(1, 2)
+        x = file_dict["x"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
+        x_mask = file_dict["x_mask"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
 
         img_recon, mu, covar = network(x)
         loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
@@ -61,8 +61,8 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
     with torch.no_grad():
         for image_idx, file_dict in enumerate(data_iter):
 
-            x = file_dict["x"].type(torch.FloatTensor).cuda().transpose(1, 2)
-            x_mask = file_dict["x_mask"].type(torch.FloatTensor).cuda().transpose(1, 2)
+            x = file_dict["x"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
+            x_mask = file_dict["x_mask"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
 
             img_recon, mu, covar = network(x)
             loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
@@ -95,10 +95,10 @@ def main(opt):
     torch.backends.cudnn.deterministic = True
     
     ### Create Network
-    network = net.VAE(opt.Network).cuda()
+    network = net.VAE(opt.Network).to(opt.Training['device'])
 
     ###### Define Optimizer ######
-    loss_func   = Loss.Loss(opt.Training)
+    loss_func   = Loss.Loss(opt.Training).to(opt.Training['device'])
     optimizer   = torch.optim.Adam(network.parameters(), lr=opt.Training['lr'], weight_decay=opt.Training['weight_decay'])
     scheduler   = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=opt.Training['sched_factor'], patience=opt.Training['sched_patience'], min_lr=1e-8,
                                                              threshold=0.0001, threshold_mode='abs')
@@ -204,17 +204,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     training_setups = aux.extract_setup_info(args.config)
 
-    # find all the gpus we want to use now (currently not necessary, only if we want to run different
-    # training setting on different gpus at the same time)
-    gpus = []
-    for tr in training_setups:
-        for GPU in tr.Training['GPU']:
-            gpus.append(str(GPU))
-
-    gpus = ",".join(gpus)
-
-    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = gpus
-
     for training_setup in tqdm(training_setups, desc='Training Setups... ', position=0, ascii=True):
+        gpu = training_setup.Training['GPU'] if torch.cuda.is_available() else []
+        device = torch.device('cuda:{}'.format(gpu[0])) if gpu and torch.cuda.is_available() else torch.device('cpu')
+        training_setup.Training['device'] = device
+        training_setup.Network['device'] = device
+        
         main(training_setup)

@@ -21,6 +21,7 @@ class dataset(torch.utils.data.Dataset):
         self.img_size = opt.Network['image_size'] # Output size of images
         self.use_mask = opt.Dataloader['use_mask']
         self.mask_edge = opt.Dataloader['mask_edge']
+        
         self.mode = mode # train or test
         self.return_mode = return_mode if return_mode else opt.Dataloader['return_mode']
         if not self.return_mode in ['random','random_hor_vert','hor_vert','all','hor','vert']: raise NameError('Return mode does not exist!')
@@ -58,7 +59,7 @@ class dataset(torch.utils.data.Dataset):
     def stack_to_tensor(self, stack):
         """ Turn stack of images into torch tensor. """
         return torch.stack([self.to_tensor(image) for image in stack], dim=0)
-        #return torch.cat([self.to_tensor(image) for image in stack], dim=0) # Should it not be like this?
+        #return torch.cat([self.to_tensor(image) for image in stack], dim=0)
     
     def get_augmentation_bools(self):
         """ Get random bools for augmentation, if respective augmentation is used. """
