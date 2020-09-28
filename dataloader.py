@@ -58,8 +58,7 @@ class dataset(torch.utils.data.Dataset):
     
     def stack_to_tensor(self, stack):
         """ Turn stack of images into torch tensor. """
-        return torch.stack([self.to_tensor(image) for image in stack], dim=0)
-        #return torch.cat([self.to_tensor(image) for image in stack], dim=0)
+        return torch.stack([self.to_tensor(image) for image in stack], dim=0).type(torch.FloatTensor).transpose(0,1)
     
     def get_augmentation_bools(self):
         """ Get random bools for augmentation, if respective augmentation is used. """

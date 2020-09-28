@@ -2,10 +2,13 @@
 image_size:         48
 in_channels:        3
 channels:           [24, 32, 64, 96, 128, 160, 192]
+strides_res:        [2, 1, 2, 2, 1, 2]
+strides_stack:      [1, 2, 1, 1, 2, 1]
 norm:               'batch'
 running_stats:      False
 up_mode:            'bilinear'
 skips:              False
+use_VAE:            True
 
 #Training
 use_kl:             False

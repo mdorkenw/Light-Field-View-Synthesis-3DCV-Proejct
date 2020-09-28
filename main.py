@@ -25,8 +25,8 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
-        x = file_dict["x"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
-        x_mask = file_dict["x_mask"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
+        x = file_dict["x"].to(dic.Training['device'])
+        x_mask = file_dict["x_mask"].to(dic.Training['device'])
 
         img_recon, mu, covar = network(x)
         loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
@@ -61,8 +61,8 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
     with torch.no_grad():
         for image_idx, file_dict in enumerate(data_iter):
 
-            x = file_dict["x"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
-            x_mask = file_dict["x_mask"].type(torch.FloatTensor).transpose(1, 2).to(dic.Training['device'])
+            x = file_dict["x"].to(dic.Training['device'])
+            x_mask = file_dict["x_mask"].to(dic.Training['device'])
 
             img_recon, mu, covar = network(x)
             loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
@@ -209,5 +209,8 @@ if __name__ == '__main__':
         device = torch.device('cuda:{}'.format(gpu[0])) if gpu and torch.cuda.is_available() else torch.device('cpu')
         training_setup.Training['device'] = device
         training_setup.Network['device'] = device
+        
+        if not training_setup.Network['use_VAE']:
+            training_setup.Training['use_kl'] = False
         
         main(training_setup)
