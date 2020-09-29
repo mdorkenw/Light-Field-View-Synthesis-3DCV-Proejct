@@ -11,17 +11,12 @@ from datetime import datetime
 from pathlib import Path
 
 
-""" - Dataloader mask for all options
-    - Larger learning rate?
-"""
-
-
 def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler, use_scheduler):
 
     _ = network.train()
     loss_track.reset()
     data_iter = tqdm(data_loader, position=2)
-    inp_string = 'Epoch {} || Loss: --- | Acc: ---'.format(epoch)
+    inp_string = 'Epoch {} || Loss: --- | Loss_kl: ---'.format(epoch)
     data_iter.set_description(inp_string)
     for image_idx, file_dict in enumerate(data_iter):
 
@@ -46,7 +41,7 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
     ## Save images
     aux.save_images(img_recon, x, dic, epoch, 'train')
     ### Empty GPU cache
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available(): torch.cuda.empty_cache()
     loss_track.get_mean()
     if use_scheduler: scheduler.step(loss_track.get_current_mean()[0])
 
@@ -79,7 +74,7 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
     aux.save_images(img_recon, x, dic, epoch, 'test')
 
     ### Empty GPU cache
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available(): torch.cuda.empty_cache()
     loss_track.get_mean()
 
 def main(opt):
@@ -173,7 +168,7 @@ def main(opt):
         validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
 
         ## Best Validation Score
-        current_auc = loss_track_test.get_current_mean()[0] # Was [-1], but should be [0]?
+        current_auc = loss_track_test.get_current_mean()[0] # Was [-1], but should be [0]? Still not working?
         if current_auc > best_val_auc:
             ###### SAVE CHECKPOINTS ########
             save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}

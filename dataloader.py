@@ -68,19 +68,28 @@ class dataset(torch.utils.data.Dataset):
         return flip, mirror, rotate
     
     ## Get Masks
-    def get_mask(self,tensor,direction,use_mask):
-        """ Get masks for loss. """
+    def get_mask(self, tensor, direction_string, use_mask):
+        """ Get masks for loss. They use mask only on one side, but I don't see the point of that.
+        """
         if not use_mask: return(torch.ones(tensor.shape))
         mask = torch.zeros(tensor.shape)
-        if direction == 'horizontal':
+        if direction_string == 'horizontal':
             mask[...,:,self.mask_edge:-self.mask_edge] = 1
-        elif direction == 'vertical':
+        elif direction_string == 'vertical':
             mask[...,self.mask_edge:-self.mask_edge,:] = 1
-        elif direction == 'diagonal':
+        elif direction_string == 'diagonal':
             mask[...,self.mask_edge:-self.mask_edge,self.mask_edge:-self.mask_edge] = 1
         else:
             mask = torch.ones(tensor.shape)
         return(mask)
+    
+    def get_mask_all(self, tensor, use_mask):
+        """ Get masks for all three directions.
+        """
+        mask_hor = self.get_mask(tensor, 'horizontal', use_mask)
+        mask_vert = self.get_mask(tensor, 'vertical', use_mask)
+        mask_diag = self.get_mask(tensor, 'diagonal', use_mask)
+        return mask_hor, mask_vert, mask_diag
     
     ## Get stacks
     def get_horizontal(self, scene, to_tensor = True, row = 4):
@@ -112,9 +121,9 @@ class dataset(torch.utils.data.Dataset):
     def get_random_direction(self, scene, to_tensor = True):
         """ Get stack with random direction. """
         direction = np.random.randint(3) # Choose whether vert, hor or diag
-        if direction == 0:      return self.get_horizontal(scene, to_tensor)
-        elif direction == 1:    return self.get_vertical(scene, to_tensor)
-        else:                   return self.get_diagonal(scene, to_tensor)
+        if direction == 0:      return self.get_horizontal(scene, to_tensor), direction
+        elif direction == 1:    return self.get_vertical(scene, to_tensor), direction
+        else:                   return self.get_diagonal(scene, to_tensor), direction
     ####
     
     ## Augment stacks
@@ -175,8 +184,8 @@ class dataset(torch.utils.data.Dataset):
     def get_random_direction_augmented(self, scene, flip = False, mirror = False, rotate = False, to_tensor = True):
         """ Get augmented stack with random direction. """
         direction = np.random.randint(3) # Choose whether vert, hor or diag
-        if direction == 2:      return self.get_diagonal_augmented(scene, flip, mirror, rotate, to_tensor)
-        else:                   return self.get_hor_vert_augmented(scene, flip, mirror, rotate, to_tensor)[direction]
+        if direction == 2:      return self.get_diagonal_augmented(scene, flip, mirror, rotate, to_tensor), direction
+        else:                   return self.get_hor_vert_augmented(scene, flip, mirror, rotate, to_tensor)[direction], direction
     ####
 
     def __getitem__(self, idx):
@@ -185,35 +194,32 @@ class dataset(torch.utils.data.Dataset):
         scene = np.random.randint(0, len(self.scenes)) # Choose random scene
         
         if self.return_mode == 'random': # Return only random direction
-            if self.mode == 'train':    out = self.get_random_direction_augmented(scene, *self.get_augmentation_bools())
-            else:                       out = self.get_random_direction(scene)
-            return {'x': out}
+            if self.mode == 'train':    out, direction = self.get_random_direction_augmented(scene, *self.get_augmentation_bools())
+            else:                       out, direction = self.get_random_direction(scene)
+            direction_string = ['horizontal','vertical','diagonal'][direction]
+            mask = self.get_mask(out,direction_string,self.use_mask)
+            return {'x': out, 'x_mask': mask, 'direction': direction_string}
             
         elif self.return_mode in ['random_hor_vert','hor','vert']: # Return either horizontal or vertical
             direction = np.random.randint(2) if self.return_mode == 'random_hor_vert' else np.where(np.asarray(['hor','vert']) == self.return_mode)[0][0]
-            if self.mode == 'train':
-                out = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())[direction]
-                mask = self.get_mask(out,['horizontal','vertical'][direction],self.use_mask)
-            else:
-                out = self.get_hor_vert(scene)[direction]
-                mask = self.get_mask(out,['horizontal','vertical'][direction],self.use_mask)
-            return {'x': out, 'x_mask': mask}
+            if self.mode == 'train': out = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())[direction]
+            else: out = self.get_hor_vert(scene)[direction]
+            direction_string = ['horizontal','vertical','diagonal'][direction]
+            mask = self.get_mask(out,direction_string,self.use_mask)
+            return {'x': out, 'x_mask': mask, 'direction': direction_string}
             
         elif self.return_mode == 'hor_vert': # Return horizontal and vertical
             if self.mode == 'train':    hor, vert = self.get_hor_vert_augmented(scene, *self.get_augmentation_bools())
             else:                       hor, vert = self.get_hor_vert(scene)
-            return {'horizontal': hor, 'vertical': vert}
+            mask_hor, mask_vert, mask_diag = self.get_mask_all(hor,self.use_mask)
+            return {'horizontal': hor, 'vertical': vert, 'horizontal_mask': mask_hor, 'vertical_mask': mask_vert}
             
         elif self.return_mode == 'all': # Return horizontal, vertical and diagonal
             if self.mode == 'train':    hor, vert, diag = self.get_all_directions_augmented(scene, *self.get_augmentation_bools())
             else:                       hor, vert, diag = self.get_all_directions(scene)
-            return {'horizontal': hor, 'vertical': vert, 'diagonal': diag}
+            mask_hor, mask_vert, mask_diag = self.get_mask_all(hor,self.use_mask)
+            return {'horizontal': hor, 'vertical': vert, 'diagonal': diag, 'horizontal_mask': mask_hor, 'vertical_mask': mask_vert, 'diagonal_mask': mask_diag}
 
     def __len__(self):
         """ Return length. """
         return self.length
-
-    def get_1hot_(self, label):
-        hot1 = np.zeros(self.n_classes)
-        hot1[label] = 1
-        return hot1

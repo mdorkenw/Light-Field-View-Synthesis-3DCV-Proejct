@@ -17,6 +17,7 @@ use_kl_threshold:   True
 kl_threshold:       200
 n_epochs:           100
 lr:                 1e-4
+recon_loss:         'L1'
 bs:                 60
 weight_decay:       0
 workers:            60
