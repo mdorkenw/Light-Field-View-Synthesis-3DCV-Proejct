@@ -151,6 +151,10 @@ class VAE(nn.Module):
         out = self.encoder(x)
         return out
 
+    def encode_reparametrize(self, x):
+        out = self.encoder(x)
+        return self.reparameterize(out)
+
     def decode(self, x):
         out = self.decoder(x)
         return out
@@ -158,19 +162,16 @@ class VAE(nn.Module):
     def reparameterize(self, x):
         """ Nut sure whether eval version is correct? Use mu instead of simply x?
         """
-        mu, logvar = self.conv_mu(x), self.conv_var(x)
-        eps = torch.FloatTensor(logvar.size()).normal_().to(self.dic['device'])
-        std = logvar.mul(0.5).exp_()
-        return eps.mul(std).add_(mu) if self.training else mu, mu, logvar
+        if self.use_VAE:
+            mu, logvar = self.conv_mu(x), self.conv_var(x)
+            eps = torch.FloatTensor(logvar.size()).normal_().to(self.dic['device'])
+            std = logvar.mul(0.5).exp_()
+            return eps.mul(std).add_(mu) if self.training else mu, mu, logvar
+        else:
+            return x, torch.ones(x.size()).type(torch.FloatTensor), torch.ones(x.size()).type(torch.FloatTensor)
 
     def forward(self, x):
         latent = self.encoder(x)
-        
-        if self.use_VAE:
-            emb, mu, logvar = self.reparameterize(latent)
-        else:
-            emb = latent
-            mu, logvar = torch.ones(latent.size()).type(torch.FloatTensor), torch.ones(latent.size()).type(torch.FloatTensor)
-        
+        emb, mu, logvar = self.reparameterize(latent)
         img_recon   = self.decoder(emb)
         return img_recon, mu, logvar

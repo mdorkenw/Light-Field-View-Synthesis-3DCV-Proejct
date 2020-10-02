@@ -14,10 +14,10 @@ from pathlib import Path
 def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler, use_scheduler):
 
     _ = network.train()
-    loss_track.reset()
+    loss_track.reset() # Start loss track
     data_iter = tqdm(data_loader, position=2)
-    inp_string = 'Epoch {} || Loss: --- | Loss_kl: ---'.format(epoch)
-    data_iter.set_description(inp_string)
+    data_iter.set_description('Epoch {} || Loss: --- | Loss_recon: --- | Loss_kl: ---'.format(epoch))
+    
     for image_idx, file_dict in enumerate(data_iter):
 
         x = file_dict["x"].to(dic.Training['device'])
@@ -30,29 +30,24 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
         loss.backward()
         optimizer.step()
 
-        loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
-        loss_track.append(loss_dic)
+        loss_track.append([loss.item(), loss_recon.item(), loss_kl.item()]) # Save loss
+        if image_idx % 20 == 0: aux.update_iter_train(data_iter, loss_track, epoch) # Update description
+            
+    #aux.update_iter_train(data_iter, loss_track, epoch) # Update description
+    loss_track.get_mean() # Finish loss track
 
-        if image_idx % 20 == 0:
-            _, loss_recon, loss_kl = loss_track.get_iteration_mean()
-            inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
-            data_iter.set_description(inp_string)
-
-    ## Save images
-    aux.save_images(img_recon, x, dic, epoch, 'train')
-    ### Empty GPU cache
-    if torch.cuda.is_available(): torch.cuda.empty_cache()
-    loss_track.get_mean()
-    if use_scheduler: scheduler.step(loss_track.get_current_mean()[0])
+    aux.save_images(img_recon, x, dic, epoch, 'train') # Save images
+    if torch.cuda.is_available(): torch.cuda.empty_cache() # Empty GPU cache
+    if use_scheduler: scheduler.step(loss_track.get_current_mean()[0]) # Scheduler step
 
 
 def validator(network, dic, epoch, data_loader, loss_track, loss_func):
 
     _ = network.eval()
-    loss_track.reset()
+    loss_track.reset() # Start loss track
     data_iter = tqdm(data_loader, position=2)
-    inp_string = 'Epoch {} || Loss: --- | Acc: ---'.format(epoch)
-    data_iter.set_description(inp_string)
+    data_iter.set_description('Epoch {} || Loss: --- | Loss_recon: --- | Loss_kl: ---'.format(epoch))
+    
     with torch.no_grad():
         for image_idx, file_dict in enumerate(data_iter):
 
@@ -62,20 +57,62 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
             img_recon, mu, covar = network(x)
             loss, loss_recon, loss_kl = loss_func(img_recon*x_mask, x*x_mask, mu, covar)
 
-            loss_dic = [loss.item(), loss_recon.item(), loss_kl.item()]
-            loss_track.append(loss_dic)
+            loss_track.append([loss.item(), loss_recon.item(), loss_kl.item()]) # Save loss
+            if image_idx % 9 == 0: aux.update_iter_train(data_iter, loss_track, epoch) # Update description
+    
+    #aux.update_iter_train(data_iter, loss_track, epoch) # Update description
+    loss_track.get_mean() # Finish loss track
+    
+    aux.save_images(img_recon, x, dic, epoch, 'test') # Save images
+    if torch.cuda.is_available(): torch.cuda.empty_cache() # Empty GPU cache
 
-            if image_idx % 10 == 0:
-                loss, loss_recon, loss_kl = loss_track.get_iteration_mean()
-                inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss, 3), np.round(loss_kl, 3))
-                data_iter.set_description(inp_string)
 
-    ## Save images
-    aux.save_images(img_recon, x, dic, epoch, 'test')
+def validator_full(network, dic, epoch, data_loader, loss_track, loss_func):
+    """ Uses diagonal mask for all directions to make losses comparable.
+        Therefore, the loss here will probably be lower that during training.
+        Does not yet work correctly for VAE!!!
+    """
 
-    ### Empty GPU cache
-    if torch.cuda.is_available(): torch.cuda.empty_cache()
-    loss_track.get_mean()
+    _ = network.eval()
+    loss_track.reset() # Start loss track
+    data_iter = tqdm(data_loader, position=2)
+    data_iter.set_description('Epoch {} || L_hor: --- | L_vert: --- | L_diag: --- | L_diag_sum: ---'.format(epoch))
+    
+    with torch.no_grad():
+        for image_idx, file_dict in enumerate(data_iter):
+            # Inputs
+            horizontal, horizontal_mask, vertical, vertical_mask, diagonal, diagonal_mask = aux.get_all_images_from_dict(file_dict, dic)
+            # Latent representations
+            latent_hor, _, _ = network.encode_reparametrize(horizontal)
+            latent_vert, _, _ = network.encode_reparametrize(vertical)
+            latent_diag, _, _ = network.encode_reparametrize(diagonal)
+            latent_diag_sum = (latent_hor+latent_vert)/2
+            # Diffrence of latent representations
+            latent_difference_hor_vert = loss_func.reconstruction_loss(latent_hor, latent_vert)
+            latent_difference_diag = loss_func.reconstruction_loss(latent_diag, latent_diag_sum)
+            # Loss hor, vert
+            img_recon_hor, img_recon_vert = network.decode(latent_hor), network.decode(latent_vert)
+            loss_hor = loss_func.reconstruction_loss(img_recon_hor*diagonal_mask, horizontal*diagonal_mask)
+            loss_vert = loss_func.reconstruction_loss(img_recon_vert*diagonal_mask, vertical*diagonal_mask)
+            # Loss diag, diag_sum
+            img_recon_diag, img_recon_diag_sum = network.decode(latent_diag), network.decode(latent_diag_sum)
+            loss_diag = loss_func.reconstruction_loss(img_recon_diag*diagonal_mask, diagonal*diagonal_mask)
+            loss_diag_sum = loss_func.reconstruction_loss(img_recon_diag_sum*diagonal_mask, diagonal*diagonal_mask)
+            
+            loss_track.append([loss_hor.item(), loss_vert.item(), loss_diag.item(), loss_diag_sum.item(),
+                                latent_difference_hor_vert.item(), latent_difference_diag.item()]) # Save loss
+            
+            if image_idx % 9 == 0: aux.update_iter_validate(data_iter, loss_track, epoch) # Update description
+    
+    #aux.update_iter_validate(data_iter, loss_track, epoch) # Update description
+    loss_track.get_mean() # Finish loss track
+    
+    aux.save_images(img_recon_hor, horizontal, dic, epoch, 'validate_hor', folder="images_validate")
+    aux.save_images(img_recon_vert, vertical, dic, epoch, 'validate_vert', folder="images_validate")
+    aux.save_images(img_recon_diag, diagonal, dic, epoch, 'validate_diag', folder="images_validate")
+    aux.save_images(img_recon_diag_sum, diagonal, dic, epoch, 'validate_diag_sum', folder="images_validate")
+    
+    if torch.cuda.is_available(): torch.cuda.empty_cache() # Empty GPU cache
 
 
 def main(opt):
@@ -105,10 +142,10 @@ def main(opt):
                                                              threshold=0.0001, threshold_mode='abs')
 
     ###### Create Dataloaders ######
-    train_dataset     = dloader.dataset(opt, mode='train')
-    train_data_loader = torch.utils.data.DataLoader(train_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
-    test_dataset       = dloader.dataset(opt, mode='test')
-    test_data_loader   = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
+    train_dataset        = dloader.dataset(opt, mode='train')
+    train_data_loader    = torch.utils.data.DataLoader(train_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
+    test_dataset         = dloader.dataset(opt, mode='test', return_mode='all' if opt.Misc['use_full_validate'] else '')
+    test_data_loader     = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
 
     ###### Set Logging Files ######
     dt = datetime.now()
@@ -136,7 +173,7 @@ def main(opt):
     save_summary = save_path + '/summary_plots'
     Path(save_path + '/summary_plots').mkdir(parents=True, exist_ok=True)
     Path(save_path + '/images').mkdir(parents=True, exist_ok=True)
-    if opt.Misc['save_img_old']: Path(save_path + '/images_single').mkdir(parents=True, exist_ok=True)
+    if opt.Misc['use_full_validate']: Path(save_path + '/images_validate').mkdir(parents=True, exist_ok=True)
 
     ### Copy Code !!
     if opt.Misc["copy_code"]: copy_tree('./', save_path + '/code/') # Does not work for me, I think the paths are too long for windows
@@ -149,13 +186,14 @@ def main(opt):
 
     ## Loss tracker is implented in such a way that the first 2 elements are added every iteration
     logging_keys = ["Loss", "L_recon", 'L_kl']
+    logging_keys_test = ["L_recon_hor", "L_recon_vert", "L_recon_diag", "L_recon_diag_sum", "D_hor_vert", "D_diag"] if opt.Misc['use_full_validate'] else logging_keys
 
     loss_track_train = aux.Loss_Tracking(logging_keys)
-    loss_track_test = aux.Loss_Tracking(logging_keys)
+    loss_track_test = aux.Loss_Tracking(logging_keys_test)
 
     ### Setting up CSV writers
     full_log_train = aux.CSVlogger(save_path + "/log_per_epoch_train.csv", ["Epoch", "Time", "LR"] + logging_keys)
-    full_log_test = aux.CSVlogger(save_path + "/log_per_epoch_test.csv", ["Epoch", "Time", "LR"] + logging_keys)
+    full_log_test = aux.CSVlogger(save_path + "/log_per_epoch_test.csv", ["Epoch", "Time", "LR"] + logging_keys_test)
 
     epoch_iterator = tqdm(range(0, opt.Training['n_epochs']), ascii=True, position=1)
     best_loss = np.inf
@@ -169,7 +207,10 @@ def main(opt):
 
         ###### Validation #########
         epoch_iterator.set_description('Validating...')
-        validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
+        if opt.Misc['use_full_validate']:
+            validator_full(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
+        else:
+            validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
 
         ## Best Validation Loss
         current_loss = loss_track_test.get_current_mean()[0]
@@ -209,7 +250,6 @@ if __name__ == '__main__':
         training_setup.Training['device'] = device
         training_setup.Network['device'] = device
         
-        if not training_setup.Network['use_VAE']:
-            training_setup.Training['use_kl'] = False
+        training_setup.Training['use_kl'] = training_setup.Network['use_VAE']
         
         main(training_setup)

@@ -173,11 +173,32 @@ def save_images(recon, x3, opt, epoch, mode, num=5, folder='images'):
     for i in range(num):
         image = torch.cat([denorm(recon[i]).float().cpu().data,denorm(x3[i]).float().cpu().data])
         torchvision.utils.save_image(image, opt.Paths['save_path'] + '/'+folder+'/{:03d}_seq_'.format(epoch + 1) + mode + '_{:03d}'.format(i) + '.png', nrow=9)
-        
-        if opt.Misc['save_img_old']:
-            torchvision.utils.save_image(denorm(recon[i]).float().cpu().data, opt.Paths['save_path'] + \
-                                            '/images_single/{:03d}_seq_generated_{:03d}'.format(epoch + 1, i) + mode + '.png',normalize=True, nrow=9)
-            torchvision.utils.save_image(denorm(x3[i]).float().cpu().data, opt.Paths['save_path'] + \
-                                            '/images_single/{:03d}_seq_original_{:03d}'.format(epoch + 1, i) + mode + '.png', nrow=9)
 
 
+def update_iter_train(data_iter, loss_track, epoch):
+    """ Update data iterator description with current loss.
+    """
+    loss, loss_recon, loss_kl = loss_track.get_iteration_mean()
+    inp_string = 'Epoch {} || Loss: {} | Loss_recon: {} | Loss_kl: {}'.format(epoch, np.round(loss, 3), np.round(loss_recon, 3), np.round(loss_kl, 3))
+    data_iter.set_description(inp_string)
+
+
+def update_iter_validate(data_iter, loss_track, epoch):
+    """ Update data iterator description with current losses.
+    """
+    loss_hor, loss_vert, loss_diag, loss_diag_sum, _, _ = loss_track.get_iteration_mean()
+    inp_string = 'Epoch {} || L_hor: {} | L_vert: {} | L_diag:{} | L_diag_sum:{}'.format(epoch, np.round(loss_hor, 3),
+                                            np.round(loss_vert, 3), np.round(loss_diag, 3), np.round(loss_diag_sum, 3))
+    data_iter.set_description(inp_string)
+
+
+def get_all_images_from_dict(file_dict, dic):
+    """ Get all directions from batch.
+    """
+    horizontal = file_dict["horizontal"].to(dic.Training['device'])
+    horizontal_mask = file_dict["horizontal_mask"].to(dic.Training['device'])
+    vertical = file_dict["vertical"].to(dic.Training['device'])
+    vertical_mask = file_dict["vertical_mask"].to(dic.Training['device'])
+    diagonal = file_dict["diagonal"].to(dic.Training['device'])
+    diagonal_mask = file_dict["diagonal_mask"].to(dic.Training['device'])
+    return horizontal, horizontal_mask, vertical, vertical_mask, diagonal, diagonal_mask

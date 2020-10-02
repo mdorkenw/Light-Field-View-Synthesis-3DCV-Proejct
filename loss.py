@@ -46,14 +46,18 @@ class Loss(nn.Module):
         self.use_kl_threshold = dic['use_kl_threshold']
         self.recon_loss = dic['recon_loss']
         if not self.recon_loss in ['L1','L2']: raise NameError('Loss mode does not exist!')
+    
+    def reconstruction_loss(self, inp, target):
+        if self.recon_loss == 'L1': L_recon = torch.mean(torch.abs(inp - target))
+        elif self.recon_loss == 'L2': L_recon = torch.mean(torch.square(inp - target))
+        return L_recon
 
     def forward(self, target, inp, mu, covar):
 
         L_kl = KLDLoss(mu, covar)
         w_kl = 0 if L_kl.item() < self.kl_th and self.use_kl_threshold else self.w_kl
         
-        if self.recon_loss == 'L1': L_recon = torch.mean(torch.abs(inp - target))
-        elif self.recon_loss == 'L2': L_recon = torch.mean(torch.square(inp - target))
+        L_recon = self.reconstruction_loss(inp, target)
         
         L = L_recon + L_kl * w_kl if self.use_kl else L_recon
         
