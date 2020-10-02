@@ -66,8 +66,8 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
             loss_track.append(loss_dic)
 
             if image_idx % 10 == 0:
-                _, loss_recon, loss_kl = loss_track.get_iteration_mean()
-                inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss_recon, 3), np.round(loss_kl, 3))
+                loss, loss_recon, loss_kl = loss_track.get_iteration_mean()
+                inp_string = 'Epoch {} || Loss: {} | Loss_kl: {}'.format(epoch, np.round(loss, 3), np.round(loss_kl, 3))
                 data_iter.set_description(inp_string)
 
     ## Save images
@@ -76,6 +76,7 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
     ### Empty GPU cache
     if torch.cuda.is_available(): torch.cuda.empty_cache()
     loss_track.get_mean()
+
 
 def main(opt):
     """============================================"""
@@ -91,6 +92,11 @@ def main(opt):
     
     ### Create Network
     network = net.VAE(opt.Network).to(opt.Training['device'])
+    if opt.Network['load_trained']:
+        save_dict = torch.load(opt.Paths['save_path'] + opt.Paths['load_network_path'])
+        network.load_state_dict(save_dict['state_dict'])
+        print('Loaded model from '+opt.Paths['load_network_path'])
+        
 
     ###### Define Optimizer ######
     loss_func   = Loss.Loss(opt.Training).to(opt.Training['device'])
@@ -100,11 +106,9 @@ def main(opt):
 
     ###### Create Dataloaders ######
     train_dataset     = dloader.dataset(opt, mode='train')
-    train_data_loader = torch.utils.data.DataLoader(train_dataset, num_workers=opt.Training['workers'],
-                                                    batch_size=opt.Training['bs'], shuffle=True)
+    train_data_loader = torch.utils.data.DataLoader(train_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
     test_dataset       = dloader.dataset(opt, mode='test')
-    test_data_loader   = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],
-                                                     batch_size=opt.Training['bs'], shuffle=False) # Our dataloader always shuffles!
+    test_data_loader   = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
 
     ###### Set Logging Files ######
     dt = datetime.now()
@@ -146,15 +150,15 @@ def main(opt):
     ## Loss tracker is implented in such a way that the first 2 elements are added every iteration
     logging_keys = ["Loss", "L_recon", 'L_kl']
 
-    loss_track_train = aux.loss_tracking(logging_keys)
-    loss_track_test = aux.loss_tracking(logging_keys)
+    loss_track_train = aux.Loss_Tracking(logging_keys)
+    loss_track_test = aux.Loss_Tracking(logging_keys)
 
     ### Setting up CSV writers
     full_log_train = aux.CSVlogger(save_path + "/log_per_epoch_train.csv", ["Epoch", "Time", "LR"] + logging_keys)
     full_log_test = aux.CSVlogger(save_path + "/log_per_epoch_test.csv", ["Epoch", "Time", "LR"] + logging_keys)
 
     epoch_iterator = tqdm(range(0, opt.Training['n_epochs']), ascii=True, position=1)
-    best_val_auc   = 0
+    best_loss = np.inf
 
     for epoch in epoch_iterator:
         epoch_time = time.time()
@@ -167,13 +171,13 @@ def main(opt):
         epoch_iterator.set_description('Validating...')
         validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
 
-        ## Best Validation Score
-        current_auc = loss_track_test.get_current_mean()[0] # Was [-1], but should be [0]? Still not working?
-        if current_auc > best_val_auc:
+        ## Best Validation Loss
+        current_loss = loss_track_test.get_current_mean()[0]
+        if current_loss < best_loss:
             ###### SAVE CHECKPOINTS ########
             save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}
             torch.save(save_dict, opt.Paths['save_path'] + '/checkpoint_best_val.pth.tar')
-            best_val_auc = current_auc
+            best_loss = current_loss
         
         ## Always save occasionally
         if epoch % opt.Training['save_every'] == 0:

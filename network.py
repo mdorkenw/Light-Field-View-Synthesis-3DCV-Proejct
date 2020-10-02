@@ -147,27 +147,13 @@ class VAE(nn.Module):
         for i, m in enumerate(self.modules()):
             self.weight_init(m)
 
-    def encode_test(self, x):
-        print(x.shape)
-        c = 0
-        for i, module in enumerate(self.encoder):
-            x = module(x)
-            if c%3==0: print("")
-            c+=1
-            print(x.shape)
-            
-        return x
+    def encode(self, x):
+        out = self.encoder(x)
+        return out
 
-    def decode_test(self, x):
-        print(x.shape)
-        c = 1
-        for i, module in enumerate(self.decoder):
-            x = module(x)
-            if c%3==0: print("")
-            c+=1
-            print(x.shape)
-        
-        return x
+    def decode(self, x):
+        out = self.decoder(x)
+        return out
 
     def reparameterize(self, x):
         """ Nut sure whether eval version is correct? Use mu instead of simply x?

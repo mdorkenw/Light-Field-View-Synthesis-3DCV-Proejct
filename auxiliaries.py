@@ -122,9 +122,9 @@ def summary_plots(loss_dic_train, loss_dic_test, epoch, save_path):
                      ["Loss Train", "AUC Test"], save_path + '/Loss_AUC.png')
 
 
-class loss_tracking():
+class Loss_Tracking():
     def __init__(self, names):
-        super(loss_tracking, self).__init__()
+        super(Loss_Tracking, self).__init__()
         self.loss_dic = names
         self.hist = {x: np.array([]) for x in self.loss_dic}
         self.keys = [*self.hist]
@@ -167,12 +167,12 @@ def denorm(x):
     return out.clamp_(0, 1)
 
 
-def save_images(recon, x3, opt, epoch, mode):
+def save_images(recon, x3, opt, epoch, mode, num=5, folder='images'):
     x3 = x3.transpose(1,2)
     recon = recon.transpose(1, 2)
-    for i in range(5):
+    for i in range(num):
         image = torch.cat([denorm(recon[i]).float().cpu().data,denorm(x3[i]).float().cpu().data])
-        torchvision.utils.save_image(image, opt.Paths['save_path'] + '/images/{:03d}_seq_'.format(epoch + 1) + mode + '_{:03d}'.format(i) + '.png', nrow=9)
+        torchvision.utils.save_image(image, opt.Paths['save_path'] + '/'+folder+'/{:03d}_seq_'.format(epoch + 1) + mode + '_{:03d}'.format(i) + '.png', nrow=9)
         
         if opt.Misc['save_img_old']:
             torchvision.utils.save_image(denorm(recon[i]).float().cpu().data, opt.Paths['save_path'] + \
