@@ -9,6 +9,7 @@ running_stats:      False
 up_mode:            'bilinear'
 skips:              False
 use_VAE:            False
+VAE_style:          'norm_conv'
 load_trained:       False
 
 #Training
@@ -30,6 +31,7 @@ sched_factor:       0.5
 sched_patience:     1
 save_every:         10
 global_seed:        42
+validate_every:     1
 
 #Dataloader
 flip:               True

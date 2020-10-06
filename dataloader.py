@@ -15,7 +15,6 @@ class dataset(torch.utils.data.Dataset):
             all_directions determines whether one random direction is returned, or all three (horizontal, vertical, diagonal).
             Dataset size is for now the number of times it should choose one random scene, maybe change later if we have more data.
         """
-        if not mode in ['train','test']: raise NameError('Mode does not exist!') # Not really necessary, but why not
         if not mode in ['train','test']: raise NameError('Mode does not exist!')
         
         self.img_size = opt.Network['image_size'] # Output size of images

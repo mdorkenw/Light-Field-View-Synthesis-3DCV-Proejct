@@ -10,14 +10,16 @@ class ResnetBlockDown(nn.Module):
     """ Downsampling the identity like this ignores most of the values?!
         Could potentially be improved by using larger kernel for downsizing, but this is how they did it.
     """
-    def __init__(self, n_in, n_out, pars, stride_v=1, stride_r=1):
+    def __init__(self, n_in, n_out, pars, stride_v=1, stride_r=1, activate=True):
         super(ResnetBlockDown, self).__init__()
-        #self.norm = pars['norm']
-        self.activate = nn.LeakyReLU(0.2, inplace=True)
         self.bn = nn.BatchNorm3d(n_in)
-
-        self.left = [nn.Conv3d(n_in, n_out, 3, stride=(stride_v, stride_r, stride_r), padding=1),  self.activate]
-        self.left = nn.Sequential(*self.left)
+        
+        if activate:
+            self.activate = nn.LeakyReLU(0.2, inplace=True)
+            self.left = [nn.Conv3d(n_in, n_out, 3, stride=(stride_v, stride_r, stride_r), padding=1), self.activate]
+            self.left = nn.Sequential(*self.left)
+        else:
+            self.left = nn.Conv3d(n_in, n_out, 3, stride=(stride_v, stride_r, stride_r), padding=1)
         
         # Use identity if possible, otherwise downsample with kernel 1x1x1
         if stride_v == 1 and stride_r == 1 and n_in == n_out:
@@ -54,7 +56,6 @@ class ResnetBlockUp(nn.Module):
     """
     def __init__(self, n_in, n_out, pars, stride_v=1, stride_r=1):
         super(ResnetBlockUp, self).__init__()
-        self.norm = pars['norm']
         self.activate = nn.LeakyReLU(0.2, inplace=True)
         self.bn = nn.BatchNorm3d(n_in)
 
@@ -74,12 +75,37 @@ class ResnetBlockUp(nn.Module):
         x = self.bn(x)
         return self.left(x) + self.right(x)
 
+######################### Variational Part ##############################################################
+
+class VariationBlock(nn.Module):
+    def __init__(self, n_in, n_out, style, dic):
+        super(VariationBlock, self).__init__()
+        self.style = style
+        
+        if self.style in ['conv', 'norm_conv']:
+            if self.style in ['norm_conv']: self.bn = nn.BatchNorm3d(n_in)
+            self.conv_mu  = nn.Conv3d(n_in, n_out, 3, 1, 1)
+            self.conv_var = nn.Conv3d(n_in, n_out, 3, 1, 1)
+        
+        if self.style == 'res_block':
+            self.conv_mu  = ResnetBlockDown(n_in, n_out, dic, stride_r=1, stride_v=1, activate=False)
+            self.conv_var = ResnetBlockDown(n_in, n_out, dic, stride_r=1, stride_v=1, activate=False)
+
+    def forward(self, x):
+        if self.style in ['norm_conv']: x = self.bn(x)
+        return self.conv_mu(x), self.conv_var(x)
 
 ############# AUTOENCODER MODEL (UNET) ############################################################################
 ###################################################################################################################
 class VAE(nn.Module):
+    """ VAE styles:
+            conv:       simply convolutional layers
+            norm_conv:  batchnorm and convolutions
+            res_block:  ResnetBlocks without activation (batchnorm + convolution + residual)
+    """
     def __init__(self, dic):
         super(VAE, self).__init__()
+        if not dic['VAE_style'] in ['conv','norm_conv','res_block']: raise NameError('VAE style does not exist!')
 
         self.dic = dic
         self.use_VAE = dic['use_VAE']
@@ -106,12 +132,15 @@ class VAE(nn.Module):
                                 ResnetBlockDown(in_channels, out_channels, dic, stride_r=strides_res[i+1], stride_v=strides_stack[i+1])])
             in_channels = out_channels
         
-        self.encoder = nn.Sequential(*self.encoder)
-        
         # Variational part
         if self.use_VAE:
-            self.conv_mu  = nn.Conv3d(out_channels, out_channels, 3, 1, 1)
-            self.conv_var = nn.Conv3d(out_channels, out_channels, 3, 1, 1)
+            #del self.encoder[-1]
+            #self.conv_mu  = ResnetBlockDown(channels[-2], channels[-1], dic, stride_r=strides_res[-1], stride_v=strides_stack[-1], activate=False)
+            #self.conv_var = ResnetBlockDown(channels[-2], channels[-1], dic, stride_r=strides_res[-1], stride_v=strides_stack[-1], activate=False)
+            self.variation = VariationBlock(channels[-1], channels[-1], dic['VAE_style'], dic)
+        
+        self.encoder = nn.Sequential(*self.encoder)
+            
         
         ### Decoder
         self.decoder = []
@@ -135,6 +164,7 @@ class VAE(nn.Module):
         ### Initialize
         self.reset_params()
         print("Number of parameters in encoder", sum(p.numel() for p in self.encoder.parameters()))
+        if self.use_VAE: print("Number of parameters in variation", sum(p.numel() for p in self.variation.parameters()))
         print("Number of parameters in decoder", sum(p.numel() for p in self.decoder.parameters()))
 
     @staticmethod
@@ -160,13 +190,13 @@ class VAE(nn.Module):
         return out
 
     def reparameterize(self, x):
-        """ Nut sure whether eval version is correct? Use mu instead of simply x?
+        """ Nut sure whether eval version is correct? Is that even necessary?
         """
         if self.use_VAE:
-            mu, logvar = self.conv_mu(x), self.conv_var(x)
+            mu, logvar = self.variation(x)
             eps = torch.FloatTensor(logvar.size()).normal_().to(self.dic['device'])
             std = logvar.mul(0.5).exp_()
-            return eps.mul(std).add_(mu) if self.training else mu, mu, logvar
+            return eps.mul(std).add_(mu), mu, logvar #if self.training else mu, mu, logvar
         else:
             return x, torch.ones(x.size()).type(torch.FloatTensor), torch.ones(x.size()).type(torch.FloatTensor)
 

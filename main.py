@@ -70,7 +70,8 @@ def validator(network, dic, epoch, data_loader, loss_track, loss_func):
 def validator_full(network, dic, epoch, data_loader, loss_track, loss_func):
     """ Uses diagonal mask for all directions to make losses comparable.
         Therefore, the loss here will probably be lower that during training.
-        Does not yet work correctly for VAE!!!
+        
+        /2 instead of /sqrt(2) because this seems to work better?
     """
 
     _ = network.eval()
@@ -207,10 +208,11 @@ def main(opt):
 
         ###### Validation #########
         epoch_iterator.set_description('Validating...')
-        if opt.Misc['use_full_validate']:
-            validator_full(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
-        else:
-            validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
+        if epoch % opt.Training['validate_every'] == 0:
+            if opt.Misc['use_full_validate']:
+                validator_full(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
+            else:
+                validator(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
 
         ## Best Validation Loss
         current_loss = loss_track_test.get_current_mean()[0]
@@ -221,7 +223,7 @@ def main(opt):
             best_loss = current_loss
         
         ## Always save occasionally
-        if epoch % opt.Training['save_every'] == 0:
+        if epoch != 0 and epoch % opt.Training['save_every'] == 0:
             ###### SAVE CHECKPOINTS ########
             save_dict = {'epoch': epoch+1, 'state_dict': network.state_dict(), 'optim_state_dict': optimizer.state_dict()}
             torch.save(save_dict, opt.Paths['save_path'] + '/checkpoint_epoch_{}.pth.tar'.format(epoch))
