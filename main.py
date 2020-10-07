@@ -129,7 +129,7 @@ def main(opt):
     torch.backends.cudnn.deterministic = True
     
     ### Create Network
-    network = net.VAE(opt.Network).to(opt.Training['device'])
+    network = net.VAE(opt.Network, opt).to(opt.Training['device'])
     if opt.Network['load_trained']:
         save_dict = torch.load(opt.Paths['save_path'] + opt.Paths['load_network_path'])
         network.load_state_dict(save_dict['state_dict'])

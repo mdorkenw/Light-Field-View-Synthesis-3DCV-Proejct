@@ -9,7 +9,7 @@ import random
 """
 
 class dataset(torch.utils.data.Dataset):
-    def __init__(self, opt, mode = 'train', return_mode = ''):
+    def __init__(self, opt, mode = 'train', return_mode = '', img_size = None):
         """ Dataset class.
             Mode, i.e. train or test, cannot be changed after initializing.
             all_directions determines whether one random direction is returned, or all three (horizontal, vertical, diagonal).
@@ -17,7 +17,7 @@ class dataset(torch.utils.data.Dataset):
         """
         if not mode in ['train','test']: raise NameError('Mode does not exist!')
         
-        self.img_size = opt.Network['image_size'] # Output size of images
+        self.img_size = opt.Network['image_size'] if img_size == None else img_size # Output size of images
         self.use_mask = opt.Dataloader['use_mask']
         self.mask_edge = opt.Dataloader['mask_edge']
         

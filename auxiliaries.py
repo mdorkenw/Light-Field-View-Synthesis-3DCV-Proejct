@@ -202,3 +202,47 @@ def get_all_images_from_dict(file_dict, dic):
     diagonal = file_dict["diagonal"].to(dic.Training['device'])
     diagonal_mask = file_dict["diagonal_mask"].to(dic.Training['device'])
     return horizontal, horizontal_mask, vertical, vertical_mask, diagonal, diagonal_mask
+
+
+def get_crops(tensor):
+    """ Crop large tensor into list of 48x48 patches with 16px overlap.
+    """
+    numb = int(tensor.shape[-1]/16-2)
+    crops = list()
+    for i in range(numb):
+        for j in range(numb):
+            crops.append(tensor[...,i*16:32+(i+1)*16,j*16:32+(j+1)*16])
+    return crops
+
+
+def crops_to_tensor(list_tensors):
+    """ Reconstruct original image from list of crops.
+    """
+    numb = int(np.sqrt(len(list_tensors)))
+    size = numb*16
+    results = torch.zeros((3,9,size,size))
+    for i, elem in enumerate(list_tensors):
+        y = i%numb
+        x = i//numb
+        results[...,x*16:(x+1)*16,y*16:(y+1)*16] = elem[...,16:32,16:32]
+    return results.transpose(0,1)
+
+
+def crop_original_full_image(tensor):
+    """ Crop border of original image.
+    """
+    return tensor[...,16:-16,16:-16]
+
+
+def save_full_image_grid(original_, generated_, name, opt):
+    """ Save original, generated images and differences.
+    """
+    original = denorm(crop_original_full_image(original_.transpose(0,1)))
+    generated = denorm(generated_)
+    
+    difference = torch.abs(original-generated)
+    difference_rep = torch.abs(original-torch.cat([original[4:5]]*9))
+    comb = torch.cat([original, generated, difference, difference_rep])
+    
+    path = os.path.dirname(opt.Paths['save_path'] + opt.Paths['load_network_path'])+"/summary_plots/"
+    torchvision.utils.save_image(comb,path+name+".png",nrow=9)

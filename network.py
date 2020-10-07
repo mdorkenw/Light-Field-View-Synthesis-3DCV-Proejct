@@ -2,6 +2,9 @@
 import torch.nn as nn, torch
 from torch.nn import init
 import torch.nn.functional as F
+import auxiliaries as aux
+from tqdm import tqdm
+import dataloader as dloader
 
 
 ######################### Resnet Block down ##############################################################
@@ -103,11 +106,12 @@ class VAE(nn.Module):
             norm_conv:  batchnorm and convolutions
             res_block:  ResnetBlocks without activation (batchnorm + convolution + residual)
     """
-    def __init__(self, dic):
+    def __init__(self, dic, opt):
         super(VAE, self).__init__()
         if not dic['VAE_style'] in ['conv','norm_conv','res_block']: raise NameError('VAE style does not exist!')
 
         self.dic = dic
+        self.opt = opt
         self.use_VAE = dic['use_VAE']
         
         channels = dic['channels']
@@ -190,7 +194,7 @@ class VAE(nn.Module):
         return out
 
     def reparameterize(self, x):
-        """ Nut sure whether eval version is correct? Is that even necessary?
+        """ Not sure whether eval version is correct? Is that even necessary?
         """
         if self.use_VAE:
             mu, logvar = self.variation(x)
@@ -205,3 +209,47 @@ class VAE(nn.Module):
         emb, mu, logvar = self.reparameterize(latent)
         img_recon   = self.decoder(emb)
         return img_recon, mu, logvar
+    
+    def pass_through_image(self, x):
+        crops = aux.get_crops(x)
+        loader = torch.utils.data.DataLoader(crops, batch_size=self.opt.Training['bs'], shuffle=False)
+        
+        generated = list()
+        with torch.no_grad():
+            for batch in tqdm(loader):
+                batch = batch.to(self.dic['device'])
+                out = self.forward(batch)[0].to('cpu')
+                generated.extend(torch.split(out,1,0))
+        
+        result = aux.crops_to_tensor(generated)
+        return result
+    
+    def pass_through_image_sum(self, hor, vert):
+        crops_hor = aux.get_crops(hor)
+        loader_hor = torch.utils.data.DataLoader(crops_hor, batch_size=self.opt.Training['bs'], shuffle=False)
+        crops_vert = aux.get_crops(vert)
+        loader_vert = torch.utils.data.DataLoader(crops_vert, batch_size=self.opt.Training['bs'], shuffle=False)
+        
+        generated = list()
+        with torch.no_grad():
+            for batch in tqdm(zip(loader_hor,loader_vert)):
+                hor, vert = batch[0].to(self.dic['device']), batch[1].to(self.dic['device'])
+                latent_hor = self.encode_reparametrize(hor)[0]
+                latent_vert = self.encode_reparametrize(vert)[0]
+                out = self.decode((latent_hor+latent_vert)/2).to('cpu')
+                generated.extend(torch.split(out,1,0))
+        
+        result = aux.crops_to_tensor(generated)
+        return result
+    
+    def save_whole_test_image(self, idx, epoch=None):
+        """ Pass through whole test image idx and save it.
+        """
+        dataset = dloader.dataset(self.opt, mode='test', return_mode='all', img_size=512)
+        horizontal, vertical, diagonal = dataset.get_all_directions(idx)
+        name = "Test"+str(idx) if epoch == None else "{:03d}_Test".format(epoch)+str(idx)
+        
+        aux.save_full_image_grid(horizontal, self.pass_through_image(horizontal), name+"_horizontal", self.opt)
+        aux.save_full_image_grid(vertical, self.pass_through_image(vertical), name+"_vertical", self.opt)
+        aux.save_full_image_grid(diagonal, self.pass_through_image(diagonal), name+"_diagonal", self.opt)
+        aux.save_full_image_grid(diagonal, self.pass_through_image_sum(horizontal, vertical), name+"_diagonal_sum", self.opt)
