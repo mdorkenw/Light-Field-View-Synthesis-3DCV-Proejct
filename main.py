@@ -11,12 +11,13 @@ from datetime import datetime
 from pathlib import Path
 
 
-def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, scheduler, use_scheduler):
+def trainer(network, dic, epoch, data_loader, data_sum_loader, loss_track, optimizer, loss_func, scheduler, use_scheduler):
 
     _ = network.train()
     loss_track.reset() # Start loss track
     data_iter = tqdm(data_loader, position=2)
     data_iter.set_description('Epoch {} || Loss: --- | Loss_recon: --- | Loss_kl: ---'.format(epoch))
+    if dic.Training['train_sum']: data_sum_iter = iter(data_sum_loader)
     
     for image_idx, file_dict in enumerate(data_iter):
 
@@ -32,6 +33,24 @@ def trainer(network, dic, epoch, data_loader, loss_track, optimizer, loss_func, 
 
         loss_track.append([loss.item(), loss_recon.item(), loss_kl.item()]) # Save loss
         if image_idx % 20 == 0: aux.update_iter_train(data_iter, loss_track, epoch) # Update description
+        
+        # Occasionally train sum to diagonal
+        if dic.Training['train_sum'] and image_idx % dic.Training['train_sum_every'] == 0:
+            file_dict = next(data_sum_iter)
+            horizontal, vertical = file_dict['horizontal'].to(dic.Training['device']), file_dict['vertical'].to(dic.Training['device'])
+            diagonal, diagonal_mask = file_dict['diagonal'].to(dic.Training['device']), file_dict['diagonal_mask'].to(dic.Training['device'])
+            
+            latent_hor, _, _ = network.encode_reparametrize(horizontal)
+            latent_vert, _, _ = network.encode_reparametrize(vertical)
+            latent_diag_sum = (latent_hor+latent_vert)/2
+            img_recon_diag_sum = network.decode(latent_diag_sum)
+            
+            loss_diag_sum = loss_func.reconstruction_loss(img_recon_diag_sum*diagonal_mask, diagonal*diagonal_mask)
+            
+            optimizer.zero_grad()
+            loss_diag_sum.backward()
+            optimizer.step()
+            
             
     #aux.update_iter_train(data_iter, loss_track, epoch) # Update description
     loss_track.get_mean() # Finish loss track
@@ -145,6 +164,8 @@ def main(opt):
     ###### Create Dataloaders ######
     train_dataset        = dloader.dataset(opt, mode='train')
     train_data_loader    = torch.utils.data.DataLoader(train_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
+    train_sum_dataset    = dloader.dataset(opt, mode='train',return_mode='all')
+    train_sum_data_loader= torch.utils.data.DataLoader(train_sum_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
     test_dataset         = dloader.dataset(opt, mode='test', return_mode='all' if opt.Misc['use_full_validate'] else '')
     test_data_loader     = torch.utils.data.DataLoader(test_dataset, num_workers=opt.Training['workers'],batch_size=opt.Training['bs'])
 
@@ -204,10 +225,10 @@ def main(opt):
 
         ##### Training ########
         epoch_iterator.set_description("Training with lr={}".format(np.round([group['lr'] for group in optimizer.param_groups][0], 6)))
-        trainer(network, opt, epoch, train_data_loader, loss_track_train, optimizer, loss_func, scheduler, opt.Training['use_sched'])
+        trainer(network, opt, epoch, train_data_loader, train_sum_data_loader, loss_track_train, optimizer, loss_func, scheduler, opt.Training['use_sched'])
 
         ###### Validation #########
-        epoch_iterator.set_description('Validating...')
+        epoch_iterator.set_description('Validating...          ')
         if epoch % opt.Training['validate_every'] == 0:
             if opt.Misc['use_full_validate']:
                 validator_full(network, opt, epoch, test_data_loader, loss_track_test, loss_func)
@@ -232,6 +253,17 @@ def main(opt):
         epoch_time =  time.time() - epoch_time
         full_log_train.write([epoch, epoch_time, [group['lr'] for group in optimizer.param_groups][0], *loss_track_train.get_current_mean()])
         full_log_test.write([epoch, epoch_time, [group['lr'] for group in optimizer.param_groups][0], *loss_track_test.get_current_mean()])
+        
+        ## Full Image Test
+        if epoch != 0 and epoch % opt.Training['full_test_every'] == 0:
+            epoch_iterator.set_description('Saving test images     ')
+            _ = network.eval()
+            if opt.Training['full_test_which'] == 'any':
+                network.save_whole_test_image(np.random.randint(0,4), epoch)
+            elif opt.Training['full_test_which'] == 'all':
+                for i in range(4): network.save_whole_test_image(i, epoch)
+            else:
+                network.save_whole_test_image(opt.Training['full_test_which'], epoch)
 
         ###### Generating Summary Plots #######
         # aux.summary_plots(loss_track_train.get_hist(), loss_track_test.get_hist(), epoch, save_summary)
@@ -253,5 +285,7 @@ if __name__ == '__main__':
         training_setup.Network['device'] = device
         
         training_setup.Training['use_kl'] = training_setup.Network['use_VAE']
+        
+        if not training_setup.Training['full_test_which'] in ['any','all',0,1,2,3]: raise NameError('Test style does not exist!')
         
         main(training_setup)

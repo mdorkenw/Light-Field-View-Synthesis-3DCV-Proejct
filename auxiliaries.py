@@ -244,5 +244,6 @@ def save_full_image_grid(original_, generated_, name, opt):
     difference_rep = torch.abs(original-torch.cat([original[4:5]]*9))
     comb = torch.cat([original, generated, difference, difference_rep])
     
-    path = os.path.dirname(opt.Paths['save_path'] + opt.Paths['load_network_path'])+"/summary_plots/"
+    if opt.Misc['test_mode']: path = os.path.dirname(opt.Paths['save_path'] + opt.Paths['load_network_path'])+"/summary_plots/"
+    else: path = opt.Paths['save_path']+"/summary_plots/"
     torchvision.utils.save_image(comb,path+name+".png",nrow=9)

@@ -216,7 +216,8 @@ class VAE(nn.Module):
         
         generated = list()
         with torch.no_grad():
-            for batch in tqdm(loader):
+            iterator = tqdm(loader) if self.opt.Misc['test_mode'] else iter(loader)
+            for batch in iterator:
                 batch = batch.to(self.dic['device'])
                 out = self.forward(batch)[0].to('cpu')
                 generated.extend(torch.split(out,1,0))
@@ -232,7 +233,8 @@ class VAE(nn.Module):
         
         generated = list()
         with torch.no_grad():
-            for batch in tqdm(zip(loader_hor,loader_vert)):
+            iterator = tqdm(zip(loader_hor,loader_vert)) if self.opt.Misc['test_mode'] else iter(zip(loader_hor,loader_vert))
+            for batch in iterator:
                 hor, vert = batch[0].to(self.dic['device']), batch[1].to(self.dic['device'])
                 latent_hor = self.encode_reparametrize(hor)[0]
                 latent_vert = self.encode_reparametrize(vert)[0]

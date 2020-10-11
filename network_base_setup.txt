@@ -32,6 +32,10 @@ sched_patience:     1
 save_every:         10
 global_seed:        42
 validate_every:     1
+train_sum:          False
+train_sum_every:    5
+full_test_every:    10
+full_test_which:    'all'
 
 #Dataloader
 flip:               True
@@ -50,3 +54,4 @@ load_network_path:              'Model_Date-2020-9-28-18-22_only_AE_onlyhv/check
 #Misc
 copy_code:          True
 use_full_validate:  True
+test_mode:          False
