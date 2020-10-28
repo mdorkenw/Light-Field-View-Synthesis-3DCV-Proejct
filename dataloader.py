@@ -55,9 +55,10 @@ class dataset(torch.utils.data.Dataset):
         """ Return path to image from scene. """
         return self.img_path + self.scenes[scene] + "/" + 'input_Cam' + str(image).zfill(3) + ".png"
     
-    def stack_to_tensor(self, stack):
+    def stack_to_tensor(self, stack, transpose = True):
         """ Turn stack of images into torch tensor. """
-        return torch.stack([self.to_tensor(image) for image in stack], dim=0).type(torch.FloatTensor).transpose(0,1)
+        if transpose:   return torch.stack([self.to_tensor(image) for image in stack], dim=0).type(torch.FloatTensor).transpose(0,1)
+        else:           return torch.stack([self.to_tensor(image) for image in stack], dim=0).type(torch.FloatTensor)
     
     def get_augmentation_bools(self):
         """ Get random bools for augmentation, if respective augmentation is used. """
@@ -108,6 +109,16 @@ class dataset(torch.utils.data.Dataset):
         stack = [self.load_img(self.get_image_path(scene, i*10 if left_right else i*10 + (8-2*i))) for i in range(9)]
         if to_tensor:   return self.stack_to_tensor(stack)
         else:           return stack
+    
+    def get_whole_grid(self, scene, to_tensor = True):
+        """ Get whole scene, choose whether it is converted to tensor. """
+        grid = list()
+        for column in range(9):
+            stack = [self.load_img(self.get_image_path(scene, i + column)) for i in range(0, 81, 9)]
+            stack = self.stack_to_tensor(stack, transpose=False) if to_tensor else stack
+            grid.append(stack)
+        if to_tensor:   return torch.stack(grid, dim=0)
+        else:           return grid
     
     def get_all_directions(self, scene, to_tensor = True):
         """ Get horizontal, vertical and diagonal stack for scene. """

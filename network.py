@@ -204,13 +204,13 @@ class VAE(nn.Module):
         else:
             return x, torch.ones(x.size()).type(torch.FloatTensor), torch.ones(x.size()).type(torch.FloatTensor)
 
-    def forward(self, x):
+    def forward(self, x, factor = 1):
         latent = self.encoder(x)
         emb, mu, logvar = self.reparameterize(latent)
-        img_recon   = self.decoder(emb)
+        img_recon   = self.decoder(emb*factor)
         return img_recon, mu, logvar
     
-    def pass_through_image(self, x):
+    def pass_through_image(self, x, factor = 1):
         crops = aux.get_crops(x)
         loader = torch.utils.data.DataLoader(crops, batch_size=self.opt.Training['bs'], shuffle=False)
         
@@ -219,13 +219,13 @@ class VAE(nn.Module):
             iterator = tqdm(loader) if self.opt.Misc['test_mode'] else iter(loader)
             for batch in iterator:
                 batch = batch.to(self.dic['device'])
-                out = self.forward(batch)[0].to('cpu')
+                out = self.forward(batch, factor)[0].to('cpu')
                 generated.extend(torch.split(out,1,0))
         
         result = aux.crops_to_tensor(generated)
         return result
     
-    def pass_through_image_sum(self, hor, vert):
+    def pass_through_image_sum(self, hor, vert, alpha=1, beta=1, norm=2):
         crops_hor = aux.get_crops(hor)
         loader_hor = torch.utils.data.DataLoader(crops_hor, batch_size=self.opt.Training['bs'], shuffle=False)
         crops_vert = aux.get_crops(vert)
@@ -238,7 +238,7 @@ class VAE(nn.Module):
                 hor, vert = batch[0].to(self.dic['device']), batch[1].to(self.dic['device'])
                 latent_hor = self.encode_reparametrize(hor)[0]
                 latent_vert = self.encode_reparametrize(vert)[0]
-                out = self.decode((latent_hor+latent_vert)/2).to('cpu')
+                out = self.decode((alpha*latent_hor+beta*latent_vert)/norm).to('cpu')
                 generated.extend(torch.split(out,1,0))
         
         result = aux.crops_to_tensor(generated)
