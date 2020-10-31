@@ -236,8 +236,12 @@ class VAE(nn.Module):
             iterator = tqdm(zip(loader_hor,loader_vert)) if self.opt.Misc['test_mode'] else iter(zip(loader_hor,loader_vert))
             for batch in iterator:
                 hor, vert = batch[0].to(self.dic['device']), batch[1].to(self.dic['device'])
-                latent_hor = self.encode_reparametrize(hor)[0]
-                latent_vert = self.encode_reparametrize(vert)[0]
+                if self.use_VAE:
+                    latent_hor = self.encode_reparametrize(hor)[1]
+                    latent_vert = self.encode_reparametrize(vert)[1]
+                else:
+                    latent_hor = self.encode_reparametrize(hor)[0]
+                    latent_vert = self.encode_reparametrize(vert)[0]
                 out = self.decode((alpha*latent_hor+beta*latent_vert)/norm).to('cpu')
                 generated.extend(torch.split(out,1,0))
         
