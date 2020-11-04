@@ -14,7 +14,7 @@ Below are GIFs demonstrating our ability to interpolate in latent space. The ima
 
 ### Autoencoder
 
-In the first GIF, we are interpolating between the center horizontal and vertical slices. In the second one, we are interpolating between a horizontal and a diagonal, and a diagonal and a vertical slice. The positions of the generated viewpoints (both the first and last image of the generated slice) are presented in the plot below. The grey dots represent the images where no interpolation was done.
+In the first GIF, we are interpolating between the center horizontal and vertical slices. In the second one, we are always interpolating between either a horizontal and a diagonal, or a diagonal and a vertical slice. The positions of the generated viewpoints (both the first and last image of the generated slice) are presented in the plot below. The grey dots represent the images where no interpolation was done.
 
 <img src="gifs/AE_RauteTest0.png" alt="alt text" width="500" height="500">
 
@@ -23,6 +23,14 @@ In the first GIF, we are interpolating between the center horizontal and vertica
 ![](gifs/AE_hor_vert_diag_Test0.gif)
 
 ### Variational Autoencoder
+
+In the first GIF, we are interpolating between the center horizontal and vertical slices. In the second one, we are interpolating between the diagonal slices (which did not really work for the autoencoder). The positions of the generated viewpoints (both the first and last image of the generated slice) are presented in the plot below. The grey dots represent the images where no interpolation was done.
+
+<img src="gifs/VAE_RauteTest0.png" alt="alt text" width="500" height="500">
+
+![](gifs/VAE_hor_vert_Test0.gif)
+
+![](gifs/VAE_hor_vert_diag_Test0_.gif)
 
 
 ## Corrections
