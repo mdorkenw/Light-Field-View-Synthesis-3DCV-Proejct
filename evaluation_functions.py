@@ -57,7 +57,7 @@ def load_dict_stuff(name):
     
     return opt, save_directory, mode, idx, ratios, angles, generated_angles, generated_diagonal, positions, positions_diagonal, horizontal, vertical, diagonal, grid_tensor, grid_tensor_full
 
-def save_dict_stuff(mode, idx, ratios, angles, generated_angles, generated_diagonal, positions, positions_diagonal):
+def save_dict_stuff(save_directory, mode, idx, ratios, angles, generated_angles, generated_diagonal, positions, positions_diagonal):
     dictionary = {"mode": mode,
                   "idx": idx,
                   "ratios": ratios,
@@ -93,6 +93,7 @@ def get_minimum_edge(y):
     #else: y = ys[::-1]
     
     if y[1]-y[0] > y[2]-y[1]: return np.nan
+    if y[1] > y[2]: return np.nan
     #if y[2] < y[1]: return np.nan
     
     d = (1-(y[1]-y[0])/(y[2]-y[1]))/2
@@ -105,14 +106,14 @@ def get_position_minimum(grid, image):
     if x == 0:
         x_ret = get_minimum_edge(np.asarray(error[0:3,y]))
     elif x == grid.shape[0]-1:
-        x_ret = x-get_minimum_edge(np.asarray(error[-4:-1,y]))
+        x_ret = x-get_minimum_edge(np.asarray(error[-3:,y])[::-1])
     else:
         x_ret = x-1+get_minimum(np.asarray(error[x-1:x+2,y]))
     
     if y == 0:
         y_ret = get_minimum_edge(np.asarray(error[x,0:3]))
     elif y == grid.shape[1]-1:
-        y_ret = y-get_minimum_edge(np.asarray(error[x,-4:-1]))
+        y_ret = y-get_minimum_edge(np.asarray(error[x,-3:])[::-1])
     else:
         y_ret = y-1+get_minimum(np.asarray(error[x,y-1:y+2]))
     
@@ -152,12 +153,16 @@ def plot_grid(n=9,raster=False):
     plt.ylim([8.5,-0.5])
     plt.xlim([-0.5,8.5])
 
-def plot_with_fit(positions, label):
+def plot_with_fit(positions, label, border=-45, add=180, color=""):
     x, y = position_to_xy(positions)
     m, b = fit_line(x,y)
     x_ = np.linspace(-1,9,100)
-    plt.plot(x_, m*x_+b)
-    plt.scatter(x, y, label=label+"{:.0f}°".format(to_angle(m)))
+    plt.plot(x_, m*x_+b, c=color if color else None)
+    plt.scatter(x, y, label=label+"{:.0f}°".format(to_angle(m, border, add)), c=color if color else None)
+
+def plot_without_fit(positions, label, color=""):
+    x, y = position_to_xy(positions)
+    plt.scatter(x, y, label=label, c=color if color else None)
 
 def plot_first_fit(positions):
     x, y = first_position_to_xy(positions)
@@ -170,9 +175,9 @@ def plot_original_positions(positions, factor,label="Orig.",c="gray"):
 
 ##### Plot Helpers
 
-def to_angle(m):
+def to_angle(m,border=-45, add=180):
     angle = np.rad2deg(np.arctan(m))
-    if angle < -45: angle = 180+angle
+    if angle < border: angle = add+angle
     return angle
 def position_to_xy(positions):
     x, y = np.asarray([x for x, y in positions]), np.asarray([y for x, y in positions])
@@ -233,6 +238,12 @@ def get_concat_h(im1, im2):
     dst = Image.new('RGB', (im1.width + im2.width, im1.height))
     dst.paste(im1, (0, 0))
     dst.paste(im2, (im1.width, 0))
+    return dst
+
+def get_concat_v(im1, im2):
+    dst = Image.new('RGB', (im1.width, im1.height + im2.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (0, im1.height))
     return dst
 
 
