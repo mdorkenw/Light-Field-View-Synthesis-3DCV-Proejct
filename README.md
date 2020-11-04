@@ -7,3 +7,24 @@ Scaling the latent representation before decoding it did not change the viewpoin
 ![](gifs/AE_SaclingLeftTest0.gif)
 
 ![](gifs/VAE_SaclingLeftTest0.gif)
+
+## Latent Space Interpolation
+
+Below are GIFs demonstrating our ability to interpolate in latent space. The images in the GIFs are always the first image in the generated light field slice.
+
+### Autoencoder
+
+In the first GIF, we are interpolating between the center horizontal and vertical slices. In the second one, we are interpolating between a horizontal and a diagonal, and a diagonal and a vertical slice. The positions of the generated viewpoints (both the first and last image of the generated slice) are presented in the plot below. The grey dots represent the images where no interpolation was done.
+
+<img src="gifs/AE_RauteTest0.png" alt="alt text" width="500" height="500">
+
+![](gifs/AE_hor_vert_Test0.gif)
+
+![](gifs/AE_hor_vert_diag_Test0.gif)
+
+### Variational Autoencoder
+
+
+## Corrections
+
+There was an error in the function that determines the position of the viewpoints, which caused it to not calculate the position if it was too close the the lower and right edges of the grid. However, this only caused some positions to be missing from some plots, and does not change our results.
