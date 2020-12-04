@@ -1,13 +1,5 @@
 # Viewpoint Interpolation of Light Fields Using Variational Autoencoders
 
-## Scaling in Latent Space
-
-Scaling the latent representation before decoding it did not change the viewpoints, but it did change the color of the images. The GIFs below are made from the leftmost image of the centre horizontal slice, where the latent reprentation was scaled by 0.5, 0.75, 1, 1.5, and 2, respectively. The first one is for the autoencoder, the second one for the variational autoencoder.
-
-![](gifs/AE_SaclingLeftTest0.gif)
-
-![](gifs/VAE_SaclingLeftTest0.gif)
-
 ## Latent Space Interpolation
 
 Below are GIFs demonstrating our ability to interpolate in latent space. The images in the GIFs are always the first image in the generated light field slice.
@@ -32,6 +24,13 @@ In the first GIF, we are interpolating between the center horizontal and vertica
 
 ![](gifs/VAE_hor_vert_diag_Test0_.gif)
 
+## Scaling in Latent Space
+
+Scaling the latent representation before decoding it did not change the viewpoints, but it did change the color of the images. The GIFs below are made from the leftmost image of the centre horizontal slice, where the latent reprentation was scaled by 0.5, 0.75, 1, 1.5, and 2, respectively. The first one is for the autoencoder, the second one for the variational autoencoder.
+
+![](gifs/AE_SaclingLeftTest0.gif)
+
+![](gifs/VAE_SaclingLeftTest0.gif)
 
 ## Corrections
 
